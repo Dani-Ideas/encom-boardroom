@@ -1,10 +1,17 @@
 var $ = require("jquery"),
-    EventSource = require("event-source"),
     Boardroom = require("./Boardroom.js"),
+    LightTable = require("./LightTable.js"),
+    Feeds = require("./Feeds.js"),
     PleaseRotate = require("pleaserotate.js"),
     init = false;
 
-require("jquery-ui");
+// The only thing jQuery UI was used for.
+$.easing.easeInOutBack = function(p){
+    var c1 = 1.70158, c2 = c1 * 1.525;
+    return p < 0.5
+        ? (Math.pow(2 * p, 2) * ((c2 + 1) * 2 * p - c2)) / 2
+        : (Math.pow(2 * p - 2, 2) * ((c2 + 1) * (p * 2 - 2) + c2) + 2) / 2;
+};
 
 $.fn.center = function (scale) {
 
@@ -27,26 +34,19 @@ var esPath = "/events.js";
 if(window._esPath){
     esPath = window._esPath;
 }
-var es = new EventSource(esPath);
-var listener = function (event) {
-    var div = document.createElement("div");
-    var type = event.type;
-    if(type === "message"){
-        if(active === "lt"){
-            LightTable.message(JSON.parse(event.data));
-        } else {
-            setTimeout(function(){
-                Boardroom.message(JSON.parse(event.data));
-            }, 3000 * Math.random());
-        }
+var feeds = new Feeds(function(message){
+    if(active === "lt"){
+        LightTable.message(message);
+    } else {
+        setTimeout(function(){
+            Boardroom.message(message);
+        }, 3000 * Math.random());
     }
-};
-es.addEventListener("open", listener);
-es.addEventListener("message", listener);
-es.addEventListener("error", listener);
+}, esPath);
 
 
 var onSwitch = function(view){
+    feeds.select(view);
     var screensaver = $("#screensaver");
     screensaver.center();
     screensaver.css({visibility: "visible"});

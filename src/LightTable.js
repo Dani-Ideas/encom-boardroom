@@ -1,12 +1,13 @@
 var $ = require("jquery"),
-    THREE = require("three");
+    THREE = require("three"),
+    Utils = require("./Utils.js");
 
 var webglTest,
     active = false,
     initialized = false,
     currentWidth = 0,
     currentHeight = 0,
-    hideFn = function(){}
+    hideFn = function(){},
     LightTable = {},
     lastMessageTime = null,
     numUsers = 1,
@@ -413,14 +414,14 @@ function createWebGlTest(){
     var camera = new THREE.PerspectiveCamera( 50, canvas.width / canvas.height, 1, 400 );
     var cameraAngle=0;
     var scene = new THREE.Scene();
-    var splineGeometry = new THREE.Geometry();
+    var splineGeometry = new Utils.VertexGeometry();
     var splineMaterial = new THREE.LineBasicMaterial({
         color: 0x6FC0BA,
         opacity: 0,
         transparent: true
     });
 
-    var backdropGeometry = new THREE.Geometry();
+    var backdropGeometry = new Utils.VertexGeometry();
     var backdropMaterial = new THREE.LineBasicMaterial({
         color: 0x1b2f2d,
         opacity: 1,
@@ -433,7 +434,7 @@ function createWebGlTest(){
     camera.position.z = cameraDistance;
     camera.lookAt(scene.position);
 
-    lastRenderDate = new Date();
+    var lastRenderDate = new Date();
 
     var calc = function(x){
         return (x+200)*(x+100)*(x+280)*(x+10)*(x-300)*(x-250)*(x-150) / Math.pow(10,14)/1.5;
@@ -444,16 +445,14 @@ function createWebGlTest(){
         var z = calc(i-250) * Math.cos(2 * Math.PI * (i % 6) / 6 + i/500);
         splineGeometry.vertices.push(new THREE.Vector3(i - 250, y, z));
     }
-    splineGeometry.verticesNeedUpdate = true;
-
-    var splineLine = new THREE.Line(splineGeometry, splineMaterial);
+    var splineLine = new THREE.Line(splineGeometry.build(), splineMaterial);
     scene.add(splineLine);
 
     for(var i = 0; i< 25; i++){
         backdropGeometry.vertices.push(new THREE.Vector3(-500,100-i*8,-100));
         backdropGeometry.vertices.push(new THREE.Vector3(500,100-i*8,-100));
     }
-    var backdropLine = new THREE.Line(backdropGeometry, backdropMaterial, THREE.LinePieces);
+    var backdropLine = new THREE.LineSegments(backdropGeometry.build(), backdropMaterial);
     scene.add(backdropLine);
 
     renderer.render( scene, camera );

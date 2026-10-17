@@ -1,4 +1,55 @@
+var THREE = require("three");
+
 var Utils = {};
+
+/* Holds a THREE.Geometry-style `vertices` array of Vector3s for code written
+ * against the old API; build() makes the BufferGeometry and update() copies
+ * the vertices into it when verticesNeedUpdate is set. */
+Utils.VertexGeometry = function(){
+    this.vertices = [];
+    this.verticesNeedUpdate = false;
+    this.geometry = new THREE.BufferGeometry();
+};
+
+Utils.VertexGeometry.prototype.build = function(){
+    this.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(this.vertices.length * 3), 3));
+    this.verticesNeedUpdate = true;
+    this.update();
+    return this.geometry;
+};
+
+Utils.VertexGeometry.prototype.update = function(){
+    if(!this.verticesNeedUpdate){
+        return;
+    }
+    var position = this.geometry.attributes.position;
+    for(var i = 0; i < this.vertices.length; i++){
+        position.setXYZ(i, this.vertices[i].x, this.vertices[i].y, this.vertices[i].z);
+    }
+    position.needsUpdate = true;
+    this.geometry.computeBoundingSphere();
+    this.verticesNeedUpdate = false;
+};
+
+/* Canvas textures hold sRGB pixels. */
+Utils.canvasTexture = function(canvas){
+    var texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+};
+
+/* Mix two #rrggbb colors, t = 0 gives a, t = 1 gives b (replaces pusher.color's blend). */
+Utils.blendColor = function(a, b, t){
+    var x = parseInt(a.slice(1), 16),
+        y = parseInt(b.slice(1), 16),
+        out = 0;
+    for(var shift = 16; shift >= 0; shift -= 8){
+        var ca = (x >> shift) & 0xff,
+            cb = (y >> shift) & 0xff;
+        out |= Math.round(ca + (cb - ca) * t) << shift;
+    }
+    return "#" + (0x1000000 + out).toString(16).slice(1);
+};
 
 Utils.renderToCanvas = function (width, height, renderFunction) {
     var buffer = document.createElement('canvas');

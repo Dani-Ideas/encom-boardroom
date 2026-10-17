@@ -24,45 +24,56 @@ tribute.
 
 ### Usage
 
-The web application can be launched simply by serving up `./index.html`.  If
-you would like the full application, including the feeds from Wikipedia and
-GitHub, install and run the node application as follows:
-
 ```sh
-npm install
-PORT=8000 node stream-server.js
+npm install        # encom-globe comes from ../encom-globe (the local hex-globe fork)
+npm run build      # vite -> build/encom-boardroom.js and build/encom-boardroom.min.js
 ```
 
-Then point your browser at `http://localhost:8000`.
+The page works without a server: serve the directory with any static server
+(for example `python3 -m http.server`) and the browser reads the public
+Wikipedia and GitHub feeds itself. Opening `index.html` straight from disk
+also works in regular browsers, but Qt WebEngine blocks remote requests from
+`file://` pages by default.
 
-The code isn't particularly well organized right now to quickly add in new
-feeds, but it certainly is possible.  I did split out the globe into its own
-[standalone library](https://github.com/arscan/encom-globe) that can be easily
-reused though.
+For locations on the GitHub stream, and IP geolocation for the Wikipedia
+edits that still show one, run the stream server:
+
+```sh
+GITHUB_TOKEN=<token> PORT=8000 npm start
+```
+
+Then point your browser at `http://localhost:8000`. The token only needs
+public read access; without it the server still runs, but GitHub events have
+no location.
 
 ### Notable Dependencies
 
-* [Node.js](http://nodejs.org/)
-* [Three.js](http://threejs.org/)
-* [Encom Globe](http://www.robscanlon.com/encom-globe)
-* [Hexasphere.js](http://www.robscanlon.com/hexasphere/)
-* [Quadtree2](https://github.com/burninggramma/quadtree2.js)
-* [pleaserotate.js](http://www.github.com/arscan/pleaserotate.js)
+* [Node.js](https://nodejs.org/) 20 or newer, [Vite](https://vite.dev/) and [Express](https://expressjs.com/) 5
+* [Three.js](https://threejs.org/) 0.184
+* [Encom Globe](https://github.com/arscan/encom-globe), the local fork in `../encom-globe`
+* [jQuery](https://jquery.com/) 3
+* [pleaserotate.js](https://www.github.com/arscan/pleaserotate.js)
 
 ### Feed Info
 
-**GitHub:** Data is being streamed in realtime from GitHub's [public timeline
-feed](http://github.com/timeline.json). Location information is retrieved from
-the user's GitHub profile and is mapped using
-[geonames.org](http://geonames.org). Historic 2013 data was retrieved from the
-[GitHub Archive](http://githubarchive.org). User pictures are from
-[Gravatar](http://gravatar.com) and are throttled to under one per second to
-conserve bandwidth.
+**GitHub:** Events come from GitHub's public [events
+API](https://docs.github.com/en/rest/activity/events), which allows 60
+unauthenticated requests an hour, so the browser polls it once a minute and
+spreads each batch over that minute. With `GITHUB_TOKEN`, the server looks up
+each user's profile location and maps it with [OpenStreetMap
+Nominatim](https://nominatim.openstreetmap.org/) (at most one request a second,
+cached), plus the repository's language and stars. Historic 2013 data was
+retrieved from the [GitHub Archive](https://www.gharchive.org/). User pictures
+are GitHub avatars.
 
-**Wikipedia:** Data is being streamed in realtime from Wikipedia's [public IRC
-feed](http://meta.wikimedia.org/wiki/IRC_channels#Raw_feeds). Location
-information is only available from anonymous users in the form of IP addresses,
-and is mapped to real locations using [freegeoip.net](http://freegeoip.net).
+**Wikipedia:** Edits are streamed in realtime from Wikimedia's
+[EventStreams](https://stream.wikimedia.org/?doc) `recentchange` feed (human
+edits on the English, Chinese, French, Russian, Spanish, Italian, Portuguese,
+Dutch, German, Swedish, Vietnamese and Japanese Wikipedias). Each edit is
+placed in the region where its language is mostly spoken. Most wikis now give
+anonymous editors temporary accounts instead of showing their IP; for the
+edits that still show one, the server maps it with
+[ip-api.com](https://ip-api.com/).
 
 ### License
 

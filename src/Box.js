@@ -1,6 +1,5 @@
 var THREE = require("three"),
-    Utils = require("./Utils"),
-    pushercolor = require("pusher.color");
+    Utils = require("./Utils");
 
 var createSideCanvas = function(){
 
@@ -66,7 +65,7 @@ var Box = function(opts){
 
     /* tracker */
     var tracker = {};
-    this.trackerGeometry = new THREE.Geometry();
+    this.trackerGeometry = new Utils.VertexGeometry();
     var trackerMaterial = new THREE.LineBasicMaterial({
         color: 0xFFFFFF,
         opacity: .3,
@@ -81,13 +80,11 @@ var Box = function(opts){
         ctx.fill();
 
     });
-    this.trackerBallTexture = new THREE.Texture(trackerBallCanvas);
-    this.trackerBallTexture.needsUpdate = true;
+    this.trackerBallTexture = Utils.canvasTexture(trackerBallCanvas);
 
     // this.container.appendChild(this.trackerBallCanvas);
 
-    this.trackerBallMaterial = new THREE.SpriteMaterial({size: 10, 
-                                                        map: this.trackerBallTexture, 
+    this.trackerBallMaterial = new THREE.SpriteMaterial({map: this.trackerBallTexture, 
                                                         opacity: 0,
                                                         depthTest: false});
 
@@ -116,7 +113,7 @@ var Box = function(opts){
 
             var ball = new THREE.Sprite(this.trackerBallMaterial);
             ball.position.set(10,10,10);
-            ball.scale.set(1,1);
+            ball.scale.set(1,1,1);
             this.scene.add(ball);
             this.trackerBalls.push(ball);
 
@@ -145,7 +142,7 @@ var Box = function(opts){
 
                 var ball = new THREE.Sprite(this.trackerBallMaterial);
                 ball.position.set(10,10,10);
-                ball.scale.set(1,1);
+                ball.scale.set(1,1,1);
                 this.scene.add(ball);
                 this.trackerBalls.push(ball);
 
@@ -173,7 +170,7 @@ var Box = function(opts){
 
                 var ball = new THREE.Sprite(this.trackerBallMaterial);
                 ball.position.set(10,10,10);
-                ball.scale.set(1,1);
+                ball.scale.set(1,1,1);
                 this.scene.add(ball);
                 this.trackerBalls.push(ball);
 
@@ -204,7 +201,7 @@ var Box = function(opts){
 
             var ball = new THREE.Sprite(this.trackerBallMaterial);
             ball.position.set(10,10,10);
-            ball.scale.set(1,1);
+            ball.scale.set(1,1,1);
             this.scene.add(ball);
             this.trackerBalls.push(ball);
 
@@ -232,7 +229,7 @@ var Box = function(opts){
 
                 var ball = new THREE.Sprite(this.trackerBallMaterial);
                 ball.position.set(10,10,10);
-                ball.scale.set(1,1);
+                ball.scale.set(1,1,1);
                 this.scene.add(ball);
                 this.trackerBalls.push(ball);
 
@@ -260,7 +257,7 @@ var Box = function(opts){
 
                 var ball = new THREE.Sprite(this.trackerBallMaterial);
                 ball.position.set(10,10,10);
-                ball.scale.set(1,1);
+                ball.scale.set(1,1,1);
                 this.scene.add(ball);
                 this.trackerBalls.push(ball);
 
@@ -285,12 +282,11 @@ var Box = function(opts){
     }
 
 
-    this.scene.add(new THREE.Line(this.trackerGeometry, trackerMaterial, THREE.LinePieces));
+    this.scene.add(new THREE.LineSegments(this.trackerGeometry.build(), trackerMaterial));
 
     /* sides of box */
 
-    var boxTexture = new THREE.Texture(createSideCanvas.call(this));
-    boxTexture.needsUpdate = true;
+    var boxTexture = Utils.canvasTexture(createSideCanvas.call(this));
 
     // this.container.appendChild( this.satelliteCanvas);
     this.sideMaterial = new THREE.MeshBasicMaterial({
@@ -325,15 +321,19 @@ var Box = function(opts){
     this.scene.add(mesh4);
 
     // create particle system
-    this.particleGeometry = new THREE.Geometry();
+    var particleCount = this.boxWidth * this.boxDepth;
+    this.particleGeometry = new THREE.BufferGeometry();
+    this.particleGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3));
+    this.particleGeometry.setAttribute("customColor", new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3));
+    this.particleGeometry.setAttribute("opacity", new THREE.BufferAttribute(new Float32Array(particleCount), 1));
 
     this.particleVertexShader = [
-        "attribute vec3 color;",
+        "attribute vec3 customColor;",
         "attribute float opacity;",
         "varying vec4 vColor;",
         "void main()",
         "{",
-        "vColor = vec4( color, opacity );", //     set color associated to vertex; use later in fragment shader.
+        "vColor = vec4( customColor, opacity );", //     set color associated to vertex; use later in fragment shader.
         "vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );",
         "gl_PointSize = 1.0;",
         "gl_Position = projectionMatrix * mvPosition;",
@@ -348,43 +348,27 @@ var Box = function(opts){
         "}"
     ].join("\n");
 
-    this.shaderAttributes = {
-        color: { type: 'c', value: []},
-        opacity: {type: 'f', value: []}
-    };
-
     this.shaderMaterial = new THREE.ShaderMaterial( {
-        uniforms:       {},
-        attributes:     this.shaderAttributes,
         vertexShader:   this.particleVertexShader,
         fragmentShader: this.particleFragmentShader,
         transparent:    true
     });
 
-
-    for(var i = 0; i< this.boxWidth * this.boxDepth; i++){
-        var x = i % this.boxWidth - this.boxWidth/2;
-        var z = (Math.floor(i / this.boxDepth) -this.boxDepth/2 );
-        var vertex = new THREE.Vector3();
-        vertex.x = x;
-        vertex.y = (this.boxHeight)*Math.sin(x/8)*Math.cos(z/8) * (((this.boxDepth/2)-Math.abs(x))/this.boxWidth/2) * ((this.boxDepth/2-Math.abs(z))/this.boxDepth/2);
-        vertex.z = z;
-        this.particleGeometry.vertices.push( vertex );
-        this.shaderAttributes.color.value[i] = new THREE.Color(0x00eeee);
-        this.shaderAttributes.opacity.value[i] = 0.0;
-    }
-
+    // The shader writes these straight out, so keep the raw sRGB values
+    // instead of letting THREE.Color convert them to linear.
     this.particleColors = [];
 
     for(var i = 0; i< 5; i++){
-        this.particleColors.push(new THREE.Color(pushercolor("#00eeee").blend("#ffcc00", i/4).hex6()));
+        this.particleColors.push(new THREE.Color().setStyle(Utils.blendColor("#00eeee", "#ffcc00", i/4), THREE.LinearSRGBColorSpace));
     }
 
-    var particleSystem = new THREE.ParticleSystem( this.particleGeometry, this.shaderMaterial);
+    var particleSystem = new THREE.Points( this.particleGeometry, this.shaderMaterial);
+    // Positions move every frame; don't cull against a stale bounding sphere.
+    particleSystem.frustumCulled = false;
 
     this.scene.add( particleSystem);
 
-    this.frameGeometry = new THREE.Geometry();
+    this.frameGeometry = new Utils.VertexGeometry();
     var frameMaterial = new THREE.LineBasicMaterial({
         color: 0xFFFFFF,
         opacity: .5,
@@ -450,7 +434,7 @@ var Box = function(opts){
     this.frameGeometry.vertices.push(new THREE.Vector3(-this.boxWidth/2, -2, this.boxDepth/2));
     addFrameAnimation.call(this, this.frameGeometry.vertices[this.frameGeometry.vertices.length-1], [-this.boxWidth/2, -2, this.boxDepth/2], [-this.boxWidth/2, 0, this.boxDepth/2], 1500, 2000);
 
-    var line = new THREE.Line(this.frameGeometry, frameMaterial, THREE.LinePieces);
+    var line = new THREE.LineSegments(this.frameGeometry.build(), frameMaterial);
 
     this.scene.add(line);
 
@@ -534,29 +518,34 @@ Box.prototype.tick = function(){
 
     /* move the particles inside */
 
-    for(var i = 0; i< this.particleGeometry.vertices.length; i++){
+    var positions = this.particleGeometry.attributes.position,
+        colors = this.particleGeometry.attributes.customColor,
+        opacities = this.particleGeometry.attributes.opacity;
+
+    for(var i = 0; i< positions.count; i++){
         var x = (i %this.boxWidth) - this.boxWidth/2;
         var z = (Math.floor(i / this.boxDepth) -this.boxDepth/2 );
         var y = Math.sin(Math.PI * 2 * (((totalRunTime / 100) % this.boxHeight)/this.boxHeight)) * this.boxHeight * Math.sin(x/8)*Math.cos(z/8) * (((this.boxWidth/2)-Math.abs(x))/(this.boxWidth/2)) * (((this.boxDepth/2)-Math.abs(z))/(this.boxDepth/2));
 
         var maxColors = this.particleColors.length - 1;
 
-        this.particleGeometry.vertices[i].x = x;
-        this.particleGeometry.vertices[i].y = y
-        this.particleGeometry.vertices[i].z = z;
+        positions.setXYZ(i, x, y, z);
 
         // fix that 36...
         if(!this.animationsDone){
-            this.shaderAttributes.opacity.value[i] = Math.min(1,(36 - Math.sqrt(Math.pow(x,2) + Math.pow(z,2)))/36 * Utils.sCurve(percentComplete) + Math.max(y,0)/10);
+            opacities.setX(i, Math.min(1,(36 - Math.sqrt(Math.pow(x,2) + Math.pow(z,2)))/36 * Utils.sCurve(percentComplete) + Math.max(y,0)/10));
         }
-        this.shaderAttributes.color.value[i] = this.particleColors[Math.min(maxColors,Math.max(0,Math.floor(y)))];
+        var color = this.particleColors[Math.min(maxColors,Math.max(0,Math.floor(y)))];
+        colors.setXYZ(i, color.r, color.g, color.b);
     }
     if(!this.animationsDone){
-        this.shaderAttributes.opacity.needsUpdate = true;
+        opacities.needsUpdate = true;
     }
-    this.shaderAttributes.color.needsUpdate = true;
-    this.particleGeometry.verticesNeedUpdate = true;
+    colors.needsUpdate = true;
+    positions.needsUpdate = true;
 
+    this.trackerGeometry.update();
+    this.frameGeometry.update();
 
 
     var rotateCameraBy = (2 * Math.PI)/(20000/renderTime);

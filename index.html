@@ -6,7 +6,7 @@
         <meta property="og:image" content="https://www.robscanlon.com/encom-boardroom/images/screenshot.jpg" />
         <meta property="og:description" content="A WebGL implementation of the Encom Boardroom scene in Tron: Legacy" />
         <title>Tron: Legacy Encom Boardroom Visualization</title>
-        <link href='//fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
         <link href="css/global.css" rel="stylesheet" type="text/css" />
         <link href="css/light-table-styles.css" rel="stylesheet" type="text/css" />
         <link href="css/boardroom-styles.css" rel="stylesheet" type="text/css" />
@@ -742,10 +742,11 @@
                 You are looking at a visualization of live updates to repositories hosted by <a href="http://github.com" target="_blank">Github</a>.
                 </p>
                 <p>
-                Data is being streamed in realtime from Github's public <a href="http://github.com/timeline.json" target="_blank">timeline feed</a>.
-                Location information is retrieved from the user's github profile and is mapped using <a href="http://geonames.org" target="_blank">geonames.org</a>.
-                Historic 2013 data was retrieved from the <a href="http://githubarchive.org" target="_blank">Github Archive</a>.  User pictures are 
-                from <a href="http://gravatar.com" target="_blank">Gravatar</a> and are throttled to under one per second to conserve bandwidth.
+                Data comes from Github's public <a href="https://docs.github.com/en/rest/activity/events" target="_blank">events API</a>.
+                When the stream server runs with a Github token, location information is retrieved from the user's github profile and is mapped using
+                <a href="https://nominatim.openstreetmap.org/" target="_blank">OpenStreetMap Nominatim</a>; without it the events have no location.
+                Historic 2013 data was retrieved from the <a href="https://www.gharchive.org/" target="_blank">Github Archive</a>.  User pictures are 
+                Github avatars and are throttled to under one per second to conserve bandwidth.
                 </p>
                 <p>
                 While I attempted to stay true to the film, it simply wasn't practical to recreate every element that is portrayed in 
@@ -771,9 +772,9 @@
                 You are looking at a visualization of live updates to <a href="http://wikipedia.com" target="_blank">Wikipedia</a>.
                 </p>
                 <p>
-                Data is being streamed in realtime from Wikipedia's public <a href="http://meta.wikimedia.org/wiki/IRC_channels#Raw_feeds" target="_blank">irc feed</a>.
-                Location information is only available from anonymous users in the form of IP addresses, and is mapped to real locations 
-                using <a href="http://freegeoip.net/" target="_blank">freegeoip.net</a>.</p>
+                Data is being streamed in realtime from Wikimedia's public <a href="https://stream.wikimedia.org/?doc" target="_blank">EventStreams</a> feed.
+                Edits are placed in the region where their language is mostly spoken. Anonymous edits that still show an IP address are mapped to
+                real locations by the stream server using <a href="https://ip-api.com/" target="_blank">ip-api.com</a>.</p>
                 <p>
                 The Wikipedia version of this is not quite complete, as I have not yet populated historic data, nor have I pulled images from
                 wikipedian's profile pages yet.  The github version is a bit more complete.

@@ -1,4 +1,3 @@
-var moment = require("moment");
 
 function drawTree(x,height){
 
@@ -19,8 +18,8 @@ function render(){
     var i = 0,
     lineLocation = 0,
     prevLocations = [], 
-    start = .25 + (12-moment.utc().hour())/24, 
-    end = .75 + (12-moment.utc().hour())/24,
+    start = .25 + (12-new Date().getUTCHours())/24, 
+    end = .75 + (12-new Date().getUTCHours())/24,
     lines = [];
 
     var locationOk = function(loc, width){

@@ -1,7 +1,5 @@
 var $ = require("jquery"),
-    pushercolor = require("pusher.color"),
-    moment = require("moment"),
-    LightTable = require("./LightTable.js"),
+    Utils = require("./Utils.js"),
     EncomGlobe = require("encom-globe"),
     SimpleClock = require("./SimpleClock.js"),
     Box = require("./Box.js"),
@@ -11,8 +9,6 @@ var $ = require("jquery"),
     StockChartSmall = require("./StockChartSmall.js"),
     Swirls = require("./Swirls.js"),
     Logo = require("./Logo.js");
-
-moment.tz = require("moment-timezone");
 
 var boardroomActive = false, 
     globe, 
@@ -35,7 +31,11 @@ var boardroomActive = false,
     currentPics = [],
     lastPicDate = Date.now(),
     streamType,
-    readmeContainer;
+    readmeContainer,
+    mediaBoxes,
+    timertrees,
+    stockchart,
+    stockchartsmall;
 
 sliderHeads = {};
 var Boardroom = {};
@@ -46,13 +46,7 @@ Boardroom.init = function(_streamType, data){
     blinkies = $('.blinky');
     mediaBoxes = $('.media-box .user-pic');
 
-    var ratio = $(window).width() / 1918;
-    $("#boardroom").css({
-        "zoom": ratio,
-        "-moz-transform": "scale(" + ratio + ")",
-        "-moz-transform-origin": "0 0"
-    });
-    $("#boardroom").center(ratio);
+    Boardroom.resize();
 
     readmeContainer = $("#boardroom-readme-" + _streamType);
 
@@ -61,10 +55,11 @@ Boardroom.init = function(_streamType, data){
 
     $("#fullscreen-link").click(function(e){
         e.preventDefault();
-        var el = document.documentElement, 
-            rfs = el.requestFullScreen || el.webkitRequestFullScreen || el.mozRequestFullScreen;
-
-        rfs.call(el);
+        if(document.fullscreenElement){
+            document.exitFullscreen();
+        } else {
+            document.documentElement.requestFullscreen();
+        }
 
     });
 
@@ -78,14 +73,28 @@ Boardroom.init = function(_streamType, data){
         hideReadme();
     });
 
+    var clocks = [
+        ["#san-francisco-time", "America/Los_Angeles"],
+        ["#new-york-time", "America/New_York"],
+        ["#london-time", "Europe/London"],
+        ["#berlin-time", "Europe/Berlin"],
+        ["#bangalore-time", "Asia/Kolkata"],
+        ["#sydney-time", "Australia/Sydney"]
+    ].map(function(clock){
+        return {
+            el: $(clock[0]),
+            format: new Intl.DateTimeFormat("en-GB", {
+                timeZone: clock[1], hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+            })
+        };
+    });
+
     setInterval(function(){
         if(boardroomActive){
-            $("#san-francisco-time").text(moment().tz("America/Los_Angeles").format("HH:mm:ss"));
-            $("#new-york-time").text(moment().tz("America/New_York").format("HH:mm:ss"));
-            $("#london-time").text(moment().tz("Europe/London").format("HH:mm:ss"));
-            $("#berlin-time").text(moment().tz("Europe/Berlin").format("HH:mm:ss"));
-            $("#bangalore-time").text(moment().tz("Asia/Colombo").format("HH:mm:ss"));
-            $("#sydney-time").text(moment().tz("Australia/Sydney").format("HH:mm:ss"));
+            var now = new Date();
+            clocks.forEach(function(clock){
+                clock.el.text(clock.format.format(now));
+            });
         }
     }, 1000);
 
@@ -141,7 +150,7 @@ Boardroom.show = function(cb){
 
     $("#boardroom").css({"visibility": "visible"});
     for(var i = 0; i< 20; i++){
-        locationAreaColors[i] = pushercolor('#00eeee').blend('#ffcc00', i/20).hex6();
+        locationAreaColors[i] = Utils.blendColor('#00eeee', '#ffcc00', i/20);
     }
 
     //animate();
@@ -210,7 +219,7 @@ Boardroom.show = function(cb){
 
     setTimeout(function(){
         globe.addMarker(49.25, -123.1, "Vancouver");
-        globe.addMarker(35.68, 129.69, "Tokyo", true);
+        globe.addMarker(35.68, 139.69, "Tokyo", true);
     }, 2000);
 
     globe = new EncomGlobe(600, 600, {
@@ -317,12 +326,10 @@ Boardroom.message = function(message){
 };
 
 Boardroom.resize = function(){
+    // CSS zoom works in every current browser (Firefox since 126), so the
+    // old -moz-transform fallback would now scale twice.
     var ratio = $(window).width() / 1918;
-    $("#boardroom").css({
-        "zoom": ratio,
-        "-moz-transform": "scale(" + ratio + ")",
-        "-moz-transform-origin": "0 0"
-    });
+    $("#boardroom").css("zoom", ratio);
 
     $("#boardroom").center(ratio);
 };
