@@ -1,6 +1,10 @@
 var $ = require("jquery"),
     THREE = require("three"),
-    Utils = require("./Utils.js");
+    Utils = require("./Utils.js"),
+    LoginTerminal = require("./LoginTerminal.js");
+
+// Stream the boardroom opens after a successful (demo) login.
+var LOGIN_STREAM = "test";
 
 var webglTest,
     active = false,
@@ -30,44 +34,11 @@ LightTable.init = function(_hideFn){
     currentHeight = $(window).height();
 
 
-    /* set events */
-
-    $("#lt-launch-github").click(function(){
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("|cd github$");
-        simulateCommand("ls$");
-        simulateCommand("run github.exe$");
-        $(document).off();
-        $(".folder-container").off();
-    });
-
-    $("#lt-launch-wikipedia").click(function(){
-        $(this).find(".folder-small").css("background-color", "#fff");
-        simulateCommand("|cd wikipedia$");
-        simulateCommand("ls$");
-        simulateCommand("run wikipedia.exe$");
-        $(document).off();
-        $(".folder-container").off();
-    });
-
-    $("#lt-launch-test").click(function(){
-        $(this).find(".folder-small").css("background-color", "#fff");
-        simulateCommand("|cd test$");
-        simulateCommand("ls$");
-        simulateCommand("run test.exe$");
-        $(document).off();
-        $(".folder-container").off();
-
-    });
-
-    $("#lt-launch-bitcoin").click(function(){
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("cd bitcoin$");
-    });
-
-    $("#lt-launch-unknown").click(function(){
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("cd unknown$");
+    LoginTerminal.init(function onLogin(){
+        $(".container-border").animate({opacity: 0}, 500);
+        setTimeout(function(){
+            hideFn(LOGIN_STREAM);
+        }, 500);
     });
 
     initialized = true;
@@ -87,14 +58,7 @@ LightTable.show = function(cb){
         showContentBoxes($("#lt-mobile-readme"), 0);
     }
 
-    $(document).keydown(function(event){
-
-        if(!event.ctrlKey && (event.which < 112 || event.which > 134) && event.which != 91) { // let them do f1-f12, windows key
-            var keycode = event.which;
-            event.preventDefault();
-            keyClick(keycode);
-        }
-    });
+    LoginTerminal.start();
 
     if(typeof cb == "function"){
         setTimeout(cb, 500);
@@ -108,7 +72,6 @@ LightTable.hide = function(cb) {
 
     active = false;
     $("#lt-mobile-readme").attr("style","");
-    $("#k-32").attr("style","");
     $(".lt-header-animator-right").attr("style","");
     $(".lt-header-animator-left").attr("style","");
 
@@ -123,7 +86,7 @@ LightTable.hide = function(cb) {
 
     webglTest.reset();
 
-    $(document).off();
+    LoginTerminal.stop();
 
     if(typeof cb == "function"){
         cb();
@@ -339,7 +302,9 @@ function showContentBoxes(item, extraDelay) {
 
     item.removeAttr("style");
 
-    var height = item.height();
+    // .css() gives the height in the box's own box-sizing, which is what
+    // animate() sets back (the merged column's boxes are border-box).
+    var height = parseFloat(item.css("height"));
     var width = item.width();
     var left = item.position().left;
     var top = item.position().top;
@@ -417,7 +382,10 @@ function createWebGlTest(){
 
     var cameraUp = false;
 
-    renderer.setSize(canvas.width, canvas.height);
+    // The canvas is sized by CSS (#lt-webglCanvas); fitCanvas() below keeps the
+    // renderer and camera matched to it.
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height, false);
     camera.position.z = cameraDistance;
     camera.lookAt(scene.position);
 
@@ -426,13 +394,10 @@ function createWebGlTest(){
     /* The tube is the system monitor: x is time (newest sample on the right),
      * and each of its sides is one channel whose radius is that channel's value.
      * Point i belongs to sample floor(i / channels) and channel i % channels. */
-    // Span the visible width, minus the camera's ±20 sway and a margin.
-    var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect,
-        span = 2 * (visibleHalfWidth - 40);
-
     var channels = SYSTEM_CHANNELS.length,
         points = SYSTEM_SAMPLES * channels,
-        step = span / (points - 1),       // x distance between points
+        span = 0,                         // x extent of the tube, set by fitCanvas()
+        step = 0,                         // x distance between points
         history = [],
         sampled = false;
 
@@ -441,7 +406,7 @@ function createWebGlTest(){
     }
 
     for(var i = 0; i < points; i++){
-        splineGeometry.vertices.push(new THREE.Vector3(i * step - span / 2, 0, 0));
+        splineGeometry.vertices.push(new THREE.Vector3());
     }
     var splineLine = new THREE.Line(splineGeometry.build(), splineMaterial);
     scene.add(splineLine);
@@ -471,19 +436,41 @@ function createWebGlTest(){
                 radius = 3 + value * 35,
                 angle = 2 * Math.PI * k / channels + i / points,
                 vertex = splineGeometry.vertices[i];
+            vertex.x = i * step - span / 2;
             vertex.y = radius * Math.sin(angle);
             vertex.z = radius * Math.cos(angle);
         }
         splineGeometry.verticesNeedUpdate = true;
         splineGeometry.update();
     };
+
+    // Match the drawing buffer and camera to the canvas' CSS size, and stretch
+    // the tube across the visible width minus the camera's ±20 sway and a margin.
+    var fittedWidth = 0, fittedHeight = 0;
+    var fitCanvas = function(){
+        var width = canvas.clientWidth,
+            height = canvas.clientHeight;
+        if(!width || !height || (width === fittedWidth && height === fittedHeight)){
+            return;
+        }
+        fittedWidth = width;
+        fittedHeight = height;
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+        span = 2 * (visibleHalfWidth - 40);
+        step = span / (points - 1);
+        rebuild();
+    };
+    fitCanvas();
     rebuild();
 
     var lastSampleTime = Date.now();
 
     for(var i = 0; i< 25; i++){
-        backdropGeometry.vertices.push(new THREE.Vector3(-500,100-i*8,-100));
-        backdropGeometry.vertices.push(new THREE.Vector3(500,100-i*8,-100));
+        backdropGeometry.vertices.push(new THREE.Vector3(-1500,100-i*8,-100));
+        backdropGeometry.vertices.push(new THREE.Vector3(1500,100-i*8,-100));
     }
     var backdropLine = new THREE.LineSegments(backdropGeometry.build(), backdropMaterial);
     scene.add(backdropLine);
@@ -531,6 +518,9 @@ function createWebGlTest(){
 
             camera.position.x = Math.sin(cameraAngle) * 20;
 
+            // The panel grows in during the intro and changes size with the window.
+            fitCanvas();
+
             // Slide left between samples so the history scrolls smoothly; each
             // new sample moves the points back by exactly this distance.
             var sinceSample = Math.min(1, (Date.now() - lastSampleTime) / SYSTEM_INTERVAL);
@@ -566,270 +556,6 @@ function createWebGlTest(){
 
 function hideWebgl(){
     $('#lt-bandwidth').css("opacity", 0);
-}
-
-function writeResponse(txt){
-    $("#lt-command-lines").append("<div class='response'>&gt;&gt;encom-sh: " + txt + "</div>");
-}
-
-var currentDir = "encom_root";
-
-function writePrompt(){
-    $(".command-blinker").removeClass("blink").removeClass("command-blinker");
-
-    $("#lt-command-lines").append('<div class="command"><span class="prompt">encom-sh:' + currentDir + '$&nbsp;</span><span class="command-text"></span><span class="blink command-blinker">&nbsp;</span></div>');
-}
-
-function writeLs(exec){
-    var output = "";
-    if(typeof exec != "undefined"){
-        output = [
-            '<div class="ls">encom_root</div>',
-            '<div class="ls">bandwidth</div>',
-            '<div class="ls">framework</div>',
-            '<div class="ls">@arscan</div>',
-            '<div class="ls ls-exec">' + exec + '</div>',
-            '<div class="ls">webgl_test</div>',
-            '<div class="ls">flynn_5</div>',
-            '<div class="ls">&nbsp;</div>',
-            '<div class="ls">os12_demo</div>',
-            '<div class="ls">munkowitz</div>',
-        ].join('');
-
-    } else {
-        output = [
-            '<div class="ls ls-github">github</div>',
-            '<div class="ls ls-test">test</div>',
-            '<div class="ls ls-wikipedia">wikipedia</div>',
-            '<div class="ls ls-bitcoin">bitcoin</div>',
-            '<div class="ls ls-unknown">unknown</div>'
-        ].join('');
-    }
-
-    $("#lt-command-lines").append(output);
-
-}
-
-
-/* I could make this much more involved, but i'm not really interested in spending time on this part of the app */
-/* sorry for disappointing anybody looking at this to see how much functionality there is */
-
-function executeCommand(){
-    var command = $(".command-text").last().text();
-
-    if(command == "run github.exe"){
-        if(currentDir == "github"){
-            $(".ls-exec").addClass("ls-highlight")
-            $(".container-border").animate({opacity: 0}, 500);
-
-            setTimeout(function(){
-                hideFn("github");
-            }, 500);
-        } else {
-            writeResponse("<span class='alert'>Error:</span> No such file");
-            writePrompt();
-        }
-
-    } else if(command == "run wikipedia.exe"){
-        if(currentDir == "wikipedia"){
-            $(".ls-exec").addClass("ls-highlight")
-            $(".container-border").animate({opacity: 0}, 500);
-
-            setTimeout(function(){
-                hideFn("wikipedia");
-            }, 500);
-
-        } else {
-            writeResponse("<span class='alert'>Error:</span> No such file");
-            writePrompt();
-        }
-    } else if(command == "run test.exe"){
-        if(currentDir == "test"){
-            $(".ls-exec").addClass("ls-highlight")
-            $(".container-border").animate({opacity: 0}, 500);
-
-            setTimeout(function(){
-                hideFn("test");
-            }, 500);
-
-        } else {
-            writeResponse("<span class='alert'>Error:</span> No such file");
-            writePrompt();
-        }
-
-    } else if(command == "cd github"){
-        $(".ls-github").addClass("ls-highlight")
-        currentDir = "github";
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-github .folder-label").addClass("selected");
-        writeResponse("Changed directory to <span class='highlight'>github</span>");
-        writePrompt();
-
-    } else if(command == "cd wikipedia"){
-        $(".ls-wikipedia").addClass("ls-highlight")
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-wikipedia .folder-label").addClass("selected");
-        currentDir = "wikipedia";
-        writeResponse("Changed directory to <span class='highlight'>wikipedia</span>");
-        writePrompt();
-
-    } else if(command == "cd test"){
-        $(".ls-test").addClass("ls-highlight")
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-test .folder-label").addClass("selected");
-        currentDir = "test";
-        writeResponse("Changed directory to <span class='highlight'>test</span>");
-        writePrompt();
-    } else if(command == "cd bitcoin") {
-        writeResponse("<span class='alert'>Not yet implemented</span>");
-        writePrompt();
-    } else if(command.indexOf("cd encom") == 0 || command == "cd /"){
-        currentDir = "encom_root";
-        writeResponse("Changed directory to <span class='highlight'>encom_root</span>");
-        writePrompt();
-    } else if(command.indexOf("cd ") == 0){
-        writeResponse("<span class='alert'>Access denied</span>");
-        writePrompt();
-    } else if(command.indexOf("ls") == 0 && currentDir == "encom_root"){
-        writeLs();
-        writePrompt();
-
-    } else if(command.indexOf("ls") == 0){
-        writeLs(currentDir + ".exe");
-        writePrompt();
-
-    } else if(command.indexOf("run") == 0){
-        writeResponse("<span class='alert'>Access denied</span>");
-        writePrompt();
-    } else {
-        writeResponse("command not found");
-        writePrompt();
-    }
-    var cl = $("#lt-command-lines");
-    $("#lt-command-line").scrollTop(cl.height())
-
-}
-
-var keyBuffer = [];
-var keysRunning = false;
-
-function runKeySimulator(){
-    var key = keyBuffer.shift();
-
-    keyClick(key);
-
-    if(keyBuffer.length > 0){
-        setTimeout(runKeySimulator,10 + Math.random() * 150);
-    } else {
-        keysRunning = false;
-    }
-
-}
-
-function simulateKey(key){
-    keyBuffer.push(key);
-    if(!keysRunning){
-        keysRunning = true;
-        setTimeout(runKeySimulator,100);
-    }
-}
-
-function simulateCommand(command){
-    var cs = command.split("");
-    for(var i = 0; i < cs.length; i++){
-        simulateKey(charToKeyCode(cs[i]));
-    }
-
-}
-
-function charToKeyCode(char){
-    var cc = char.charCodeAt(0);
-    if(cc <= 122 && cc >=97){
-        return cc - 32;
-    } else if (char === "."){
-        return 190;
-    } else if (char === " "){
-        return 32;
-    } else if (char === "$"){
-        return 13;
-    } else if (char === "|"){
-        return 27; 
-    }
-
-    return 0;
-
-}
-
-function toggleKey(element){
-    element.css({
-        "background-color": "#fff",
-        "color": "#000"
-    });
-
-    setTimeout(function(){
-        element.css({
-            "background-color": "#888",
-            "color": "#888"
-        });
-    }, 200);
-    setTimeout(function(){
-        element.css({
-            "background-color": "#000",
-            "color": "#00eeee"
-        });
-    }, 300);
-}
-
-function writeKeyStroke(keycode){
-    var txt = $(".command-text").last();
-    switch(keycode){
-        case 8: 
-            txt.text(txt.text().substring(0,txt.text().length-1));
-        break;
-        case 27: 
-            txt.text("");
-        break;
-        case 13:
-            executeCommand();
-        break;
-        case 189:
-            txt.append("_");
-        break;
-        case 187:
-            txt.append("=");
-        break;
-        case 219:
-            txt.append("{");
-        break;
-        case 221:
-            txt.append("}");
-        break;
-        case 186:
-            txt.append(";");
-        break;
-        case 222:
-            txt.append("'");
-        break;
-        case 188:
-            txt.append(",");
-        break;
-        case 190:
-            txt.append(".");
-        break;
-        case 191:
-            txt.append("/");
-        break;
-        case 192:
-            txt.append("~");
-        break;
-        case 500:
-            txt.append("");
-        break;
-        default:
-            var key = String.fromCharCode(keycode).toLowerCase();
-        txt.append(key)
-    };
-
 }
 
 module.exports = LightTable;

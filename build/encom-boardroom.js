@@ -55764,51 +55764,288 @@ void main() {
     Boardroom_1 = Boardroom;
     return Boardroom_1;
   }
+  var LoginTerminal_1;
+  var hasRequiredLoginTerminal;
+  function requireLoginTerminal() {
+    if (hasRequiredLoginTerminal) return LoginTerminal_1;
+    hasRequiredLoginTerminal = 1;
+    var $ = requireJquery();
+    var DEMO_USER = "flynn", DEMO_PASSWORD = "tron", HOSTNAME = "llvm992", MAX_ATTEMPTS = 3, LOCK_SECONDS = 30, VERIFY_MS = 1200, LAST_LOGIN_KEY = "encom-last-login";
+    var KEYBOARD_ROWS = [
+      ["ESC", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "BACK"],
+      ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+      ["A", "S", "D", "F", "G", "H", "J", "K", "L", "ENTER"],
+      ["Z", "X", "C", "V", "B", "N", "M", ".", "_", "-"],
+      ["SPACE"]
+    ];
+    var authenticate = function(user, pass, done) {
+      setTimeout(function() {
+        done(user === DEMO_USER && pass === DEMO_PASSWORD);
+      }, VERIFY_MS);
+    };
+    var state = "idle", username = "", password = "", attempts = 0, onLogin = function() {
+    }, sleeping = false;
+    function lines() {
+      return $("#lt-command-lines");
+    }
+    function scrollToEnd() {
+      var box = $("#lt-command-line");
+      box.scrollTop(box[0].scrollHeight);
+    }
+    function write(html, cls) {
+      lines().append('<div class="' + (cls || "response") + '">' + html + "</div>");
+      scrollToEnd();
+    }
+    function prompt(label) {
+      $(".command-blinker").removeClass("blink").removeClass("command-blinker");
+      lines().append('<div class="command"><span class="prompt">' + label + '&nbsp;</span><span class="command-text"></span><span class="blink command-blinker">&nbsp;</span></div>');
+      scrollToEnd();
+    }
+    function typed() {
+      return $(".command-text").last();
+    }
+    function stopCursor() {
+      $(".command-blinker").removeClass("blink").removeClass("command-blinker");
+    }
+    function escapeHtml(text) {
+      return $("<div>").text(text).html();
+    }
+    function formatDate(date) {
+      return date.toDateString() + " " + date.toTimeString().slice(0, 8);
+    }
+    function askLogin() {
+      state = "login";
+      username = "";
+      password = "";
+      prompt("encom-os12 login:");
+    }
+    function askPassword() {
+      state = "password";
+      prompt("Password:");
+    }
+    function verify() {
+      state = "busy";
+      stopCursor();
+      write("&gt;&gt;encom-sh: verifying credentials ...");
+      authenticate(username, password, function(ok) {
+        if (ok) {
+          granted();
+        } else {
+          denied();
+        }
+      });
+    }
+    function granted() {
+      state = "done";
+      var previous = null;
+      try {
+        previous = localStorage.getItem(LAST_LOGIN_KEY);
+        localStorage.setItem(LAST_LOGIN_KEY, formatDate(/* @__PURE__ */ new Date()));
+      } catch (ex) {
+      }
+      if (previous) {
+        write("Last login: " + previous + " on " + HOSTNAME);
+      }
+      write('<span class="highlight">ACCESS GRANTED.</span> Welcome, <strong>' + escapeHtml(username) + "</strong>");
+      write("&gt;&gt;encom-sh: launching boardroom ...");
+      setTimeout(onLogin, 1500);
+    }
+    function denied() {
+      attempts++;
+      write('<span class="alert">ACCESS DENIED.</span> Login incorrect');
+      if (attempts >= MAX_ATTEMPTS) {
+        lock();
+      } else {
+        write(MAX_ATTEMPTS - attempts + " attempt" + (MAX_ATTEMPTS - attempts === 1 ? "" : "s") + " remaining");
+        askLogin();
+      }
+    }
+    function lock() {
+      state = "locked";
+      write('<span class="alert">Maximum number of tries exceeded (' + MAX_ATTEMPTS + ")</span>");
+      write('Terminal locked for <span class="lt-lock-countdown">' + LOCK_SECONDS + "</span> s");
+      var countdown = $(".lt-lock-countdown").last(), remaining = LOCK_SECONDS;
+      var timer = setInterval(function() {
+        remaining--;
+        countdown.text(remaining);
+        if (remaining <= 0) {
+          clearInterval(timer);
+          attempts = 0;
+          write("Terminal unlocked");
+          askLogin();
+        }
+      }, 1e3);
+    }
+    function input(key) {
+      if (sleeping) {
+        wake();
+        return;
+      }
+      if (state !== "login" && state !== "password") {
+        return;
+      }
+      flashKey(key);
+      if (key === "ENTER") {
+        if (state === "login") {
+          if (username.length === 0) {
+            askLogin();
+          } else {
+            askPassword();
+          }
+        } else {
+          verify();
+        }
+      } else if (key === "ESC") {
+        stopCursor();
+        write("^C", "response");
+        askLogin();
+      } else if (key === "BACK") {
+        if (state === "login") {
+          username = username.slice(0, -1);
+          typed().text(username);
+        } else {
+          password = password.slice(0, -1);
+        }
+      } else if (key.length === 1) {
+        if (state === "login") {
+          username += key;
+          typed().text(username);
+        } else {
+          password += key;
+        }
+      }
+    }
+    function keyFromEvent(event) {
+      if (event.key === "Enter") {
+        return "ENTER";
+      }
+      if (event.key === "Backspace") {
+        return "BACK";
+      }
+      if (event.key === "Escape" || event.ctrlKey && event.key === "c") {
+        return "ESC";
+      }
+      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        return event.key;
+      }
+      return null;
+    }
+    function buildKeyboard() {
+      var keyboard = $("#lt-vkeyboard").empty();
+      KEYBOARD_ROWS.forEach(function(row) {
+        var rowEl = $('<div class="lt-vkeyboard-row"></div>');
+        row.forEach(function(label) {
+          var key = label === "SPACE" ? " " : label.length === 1 ? label.toLowerCase() : label;
+          $('<div class="lt-vkey"></div>').text(label).toggleClass("lt-vkey-wide", label.length > 1).attr("data-key", label === "SPACE" ? " " : label).on("mousedown", function(event) {
+            event.preventDefault();
+            input(key);
+          }).appendTo(rowEl);
+        });
+        keyboard.append(rowEl);
+      });
+    }
+    function flashKey(key) {
+      var el = $("#lt-vkeyboard .lt-vkey").filter(function() {
+        return $(this).attr("data-key") === (key.length === 1 ? key.toUpperCase() : key);
+      });
+      el.addClass("lt-vkey-pressed");
+      setTimeout(function() {
+        el.removeClass("lt-vkey-pressed");
+      }, 150);
+    }
+    function toggleKeyboard() {
+      var keyboard = $("#lt-vkeyboard");
+      keyboard.toggleClass("lt-vkeyboard-visible");
+      $("#lt-button-keyboard").toggleClass("lt-button-active", keyboard.hasClass("lt-vkeyboard-visible"));
+    }
+    function sleep() {
+      sleeping = true;
+      $("#lt-sleep").stop().css("display", "block").animate({ opacity: 1 }, 800);
+    }
+    function wake() {
+      sleeping = false;
+      $("#lt-sleep").stop().animate({ opacity: 0 }, 500, function() {
+        $(this).css("display", "none");
+      });
+      if (state === "login" || state === "password") {
+        stopCursor();
+        write("&gt;&gt;encom-sh: system resumed from sleep");
+        if (state === "login") {
+          prompt("encom-os12 login:");
+          typed().text(username);
+        } else {
+          prompt("Password:");
+        }
+      }
+    }
+    function switchUser() {
+      if (state === "busy" || state === "locked" || state === "done") {
+        return;
+      }
+      lines().empty();
+      write("&gt;&gt;encom-sh: session closed. Switching user ...");
+      attempts = 0;
+      askLogin();
+    }
+    function showHeader() {
+      var lastLogin = null;
+      try {
+        lastLogin = localStorage.getItem(LAST_LOGIN_KEY);
+      } catch (ex) {
+      }
+      $("#lt-command-line-header").text("Last Login: " + (lastLogin || "Wed Nov 26 11:26:49") + " on " + HOSTNAME);
+    }
+    var LoginTerminal = {};
+    LoginTerminal.init = function(_onLogin) {
+      onLogin = _onLogin;
+      buildKeyboard();
+      showHeader();
+      $("#lt-button-keyboard").on("click", toggleKeyboard);
+      $("#lt-button-sleep").on("click", sleep);
+      $("#lt-button-switch").on("click", switchUser);
+      $("#lt-sleep").on("click", wake);
+    };
+    LoginTerminal.start = function() {
+      lines().empty();
+      attempts = 0;
+      askLogin();
+      $(document).on("keydown.loginterminal", function(event) {
+        var key = keyFromEvent(event);
+        if (key) {
+          event.preventDefault();
+          input(key);
+        }
+      });
+    };
+    LoginTerminal.stop = function() {
+      state = "idle";
+      $(document).off("keydown.loginterminal");
+    };
+    LoginTerminal_1 = LoginTerminal;
+    return LoginTerminal_1;
+  }
   var LightTable_1;
   var hasRequiredLightTable;
   function requireLightTable() {
     if (hasRequiredLightTable) return LightTable_1;
     hasRequiredLightTable = 1;
-    var $ = requireJquery(), THREE = /* @__PURE__ */ requireThree(), Utils = requireUtils$1();
-    var webglTest, active = false, initialized = false, currentWidth = 0, LightTable = {}, lastMessageTime = null, dataStreamOn = false;
+    var $ = requireJquery(), THREE = /* @__PURE__ */ requireThree(), Utils = requireUtils$1(), LoginTerminal = requireLoginTerminal();
+    var LOGIN_STREAM = "test";
+    var webglTest, active = false, initialized = false, currentWidth = 0, hideFn = function() {
+    }, LightTable = {}, lastMessageTime = null, dataStreamOn = false;
     LightTable.init = function(_hideFn) {
+      hideFn = _hideFn;
       $(".lt-header").css("visibility", "hidden");
       $(".content-container").css("visibility", "hidden");
       webglTest = createWebGlTest();
       $("#light-table").css("visibility", "visible");
       currentWidth = $(window).width();
       $(window).height();
-      $("#lt-launch-github").click(function() {
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("|cd github$");
-        simulateCommand("ls$");
-        simulateCommand("run github.exe$");
-        $(document).off();
-        $(".folder-container").off();
-      });
-      $("#lt-launch-wikipedia").click(function() {
-        $(this).find(".folder-small").css("background-color", "#fff");
-        simulateCommand("|cd wikipedia$");
-        simulateCommand("ls$");
-        simulateCommand("run wikipedia.exe$");
-        $(document).off();
-        $(".folder-container").off();
-      });
-      $("#lt-launch-test").click(function() {
-        $(this).find(".folder-small").css("background-color", "#fff");
-        simulateCommand("|cd test$");
-        simulateCommand("ls$");
-        simulateCommand("run test.exe$");
-        $(document).off();
-        $(".folder-container").off();
-      });
-      $("#lt-launch-bitcoin").click(function() {
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("cd bitcoin$");
-      });
-      $("#lt-launch-unknown").click(function() {
-        $(this).find(".folder-big").css("background-color", "#fff");
-        simulateCommand("cd unknown$");
+      LoginTerminal.init(function onLogin() {
+        $(".container-border").animate({ opacity: 0 }, 500);
+        setTimeout(function() {
+          hideFn(LOGIN_STREAM);
+        }, 500);
       });
       initialized = true;
     };
@@ -55821,13 +56058,7 @@ void main() {
       if ($("#lt-mobile-readme").width() > 0) {
         showContentBoxes($("#lt-mobile-readme"), 0);
       }
-      $(document).keydown(function(event) {
-        if (!event.ctrlKey && (event.which < 112 || event.which > 134) && event.which != 91) {
-          var keycode = event.which;
-          event.preventDefault();
-          keyClick(keycode);
-        }
-      });
+      LoginTerminal.start();
       if (typeof cb == "function") {
         setTimeout(cb, 500);
       }
@@ -55836,7 +56067,6 @@ void main() {
     LightTable.hide = function(cb) {
       active = false;
       $("#lt-mobile-readme").attr("style", "");
-      $("#k-32").attr("style", "");
       $(".lt-header-animator-right").attr("style", "");
       $(".lt-header-animator-left").attr("style", "");
       $("#light-table").animate({
@@ -55847,7 +56077,7 @@ void main() {
         hideWebgl();
       }, 500);
       webglTest.reset();
-      $(document).off();
+      LoginTerminal.stop();
       if (typeof cb == "function") {
         cb();
       }
@@ -56010,7 +56240,7 @@ void main() {
     function showContentBoxes(item, extraDelay) {
       var itemContent = item.find(".content");
       item.removeAttr("style");
-      var height = item.height();
+      var height = parseFloat(item.css("height"));
       var width = item.width();
       var left = item.position().left;
       var top = item.position().top;
@@ -56059,19 +56289,19 @@ void main() {
         opacity: 1,
         transparent: true
       });
-      renderer.setSize(canvas.width, canvas.height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height, false);
       camera.position.z = cameraDistance;
       camera.lookAt(scene.position);
       var lastRenderDate = /* @__PURE__ */ new Date();
-      var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect, span = 2 * (visibleHalfWidth - 40);
-      var channels = SYSTEM_CHANNELS.length, points = SYSTEM_SAMPLES * channels, step = span / (points - 1), history = [], sampled = false;
+      var channels = SYSTEM_CHANNELS.length, points = SYSTEM_SAMPLES * channels, span = 0, step = 0, history = [], sampled = false;
       for (var t = 0; t < SYSTEM_SAMPLES; t++) {
         history.push(SYSTEM_CHANNELS.map(function() {
           return 0;
         }));
       }
       for (var i = 0; i < points; i++) {
-        splineGeometry.vertices.push(new THREE.Vector3(i * step - span / 2, 0, 0));
+        splineGeometry.vertices.push(new THREE.Vector3());
       }
       var splineLine = new THREE.Line(splineGeometry.build(), splineMaterial);
       scene.add(splineLine);
@@ -56095,17 +56325,35 @@ void main() {
         });
         for (var i2 = 0; i2 < points; i2++) {
           var k = i2 % channels, value = Math.min(1, history[Math.floor(i2 / channels)][k] / scales[k]), radius = 3 + value * 35, angle = 2 * Math.PI * k / channels + i2 / points, vertex = splineGeometry.vertices[i2];
+          vertex.x = i2 * step - span / 2;
           vertex.y = radius * Math.sin(angle);
           vertex.z = radius * Math.cos(angle);
         }
         splineGeometry.verticesNeedUpdate = true;
         splineGeometry.update();
       };
+      var fittedWidth = 0, fittedHeight = 0;
+      var fitCanvas = function() {
+        var width = canvas.clientWidth, height = canvas.clientHeight;
+        if (!width || !height || width === fittedWidth && height === fittedHeight) {
+          return;
+        }
+        fittedWidth = width;
+        fittedHeight = height;
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+        span = 2 * (visibleHalfWidth - 40);
+        step = span / (points - 1);
+        rebuild();
+      };
+      fitCanvas();
       rebuild();
       var lastSampleTime = Date.now();
       for (var i = 0; i < 25; i++) {
-        backdropGeometry.vertices.push(new THREE.Vector3(-500, 100 - i * 8, -100));
-        backdropGeometry.vertices.push(new THREE.Vector3(500, 100 - i * 8, -100));
+        backdropGeometry.vertices.push(new THREE.Vector3(-1500, 100 - i * 8, -100));
+        backdropGeometry.vertices.push(new THREE.Vector3(1500, 100 - i * 8, -100));
       }
       var backdropLine = new THREE.LineSegments(backdropGeometry.build(), backdropMaterial);
       scene.add(backdropLine);
@@ -56142,6 +56390,7 @@ void main() {
             }
           }
           camera.position.x = Math.sin(cameraAngle) * 20;
+          fitCanvas();
           var sinceSample = Math.min(1, (Date.now() - lastSampleTime) / SYSTEM_INTERVAL);
           splineLine.position.x = -sinceSample * channels * step;
           renderer.render(scene, camera);
@@ -56171,45 +56420,6 @@ void main() {
     }
     function hideWebgl() {
       $("#lt-bandwidth").css("opacity", 0);
-    }
-    var keyBuffer = [];
-    var keysRunning = false;
-    function runKeySimulator() {
-      var key = keyBuffer.shift();
-      keyClick(key);
-      if (keyBuffer.length > 0) {
-        setTimeout(runKeySimulator, 10 + Math.random() * 150);
-      } else {
-        keysRunning = false;
-      }
-    }
-    function simulateKey(key) {
-      keyBuffer.push(key);
-      if (!keysRunning) {
-        keysRunning = true;
-        setTimeout(runKeySimulator, 100);
-      }
-    }
-    function simulateCommand(command) {
-      var cs = command.split("");
-      for (var i = 0; i < cs.length; i++) {
-        simulateKey(charToKeyCode(cs[i]));
-      }
-    }
-    function charToKeyCode(char) {
-      var cc = char.charCodeAt(0);
-      if (cc <= 122 && cc >= 97) {
-        return cc - 32;
-      } else if (char === ".") {
-        return 190;
-      } else if (char === " ") {
-        return 32;
-      } else if (char === "$") {
-        return 13;
-      } else if (char === "|") {
-        return 27;
-      }
-      return 0;
     }
     LightTable_1 = LightTable;
     return LightTable_1;

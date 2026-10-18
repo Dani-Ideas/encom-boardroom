@@ -1,3 +1,6 @@
 node_modules/
 bower_components/
 npm-debug.log
+sddm-theme/EncomSystem/
+sddm-theme/native/build/
+sddm-theme/theme.conf.user

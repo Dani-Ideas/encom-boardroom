@@ -1,0 +1,16 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "dani-ideas"
+            }
+        ],
+        "Description": "DANI-IDEAS badge in the style of the Encom Boardroom stream screen",
+        "Id": "com.daniideas.encom.splash",
+        "License": "MIT",
+        "Name": "Dani-Ideas Encom",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}

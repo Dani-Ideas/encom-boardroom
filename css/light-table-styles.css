@@ -48,16 +48,18 @@ ul {
     z-index: 20;
 }
 
-#lt-left-column{
+/* The former left (52..432px) and right (500..980px) columns, merged */
+#lt-main-column{
     position: absolute;
     left: 52px;
-    width: 380px;
+    width: 928px;
 }
 
-#lt-right-column{
-    position: absolute;
-    left: 500px;
-    width: 480px;
+/* Boxes span the whole column; border-box keeps the border and padding inside
+   that width (showContentBoxes animates them to width: 100%). */
+#lt-main-column .content-container {
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .lt-header{
@@ -96,25 +98,20 @@ ul {
     color: #ffcc00;
 }
 
-#lt-header-top-left {
+#lt-header-top {
     position: absolute;
     top: 25px;
 }
 
-#lt-header-top-right {
-    position: absolute;
-    top: 25px;
-}
-
-#lt-header-bottom-left {
+#lt-header-bottom {
     position: absolute;
     top: 550px;
 }
 
-#lt-header-bottom-left .lt-header-left-section{
+#lt-header-bottom .lt-header-left-section{
     width: 45%
 }
-#lt-header-bottom-left .lt-header-right-section{
+#lt-header-bottom .lt-header-right-section{
     width: 45%
 }
 
@@ -228,6 +225,13 @@ ul {
 }
 
 /* RAM / CPU / NET / DISK readout over the bandwidth tube */
+/* Full column width at a fixed height; LightTable.js resizes the renderer to match. */
+#lt-webglCanvas {
+    display: block;
+    width: 100%;
+    height: 100px;
+}
+
 #lt-sysstats {
     position: absolute;
     left: 12px;
@@ -248,7 +252,6 @@ ul {
 #lt-globalization {
     position: absolute;
     top: 60px;
-    width: 470px;
 }
 
 #lt-globalization .content {
@@ -257,12 +260,117 @@ ul {
 }
 
 #lt-command-line {
-    width: 318px;
+    width: 48%;
     float: left;
-    height: 129px;
+    height: 225px;
     margin-top: 5px;
     padding: 5px;
     overflow: hidden;
+}
+
+/* Login screen: buttons and virtual keyboard to the right of the terminal */
+#lt-login-side {
+    float: right;
+    width: 46%;
+    margin: 12px 12px 0 0;
+}
+
+#lt-login-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.lt-button {
+    border: 1px solid #6fc0ba;
+    border-radius: 2px;
+    color: #00eeee;
+    padding: 3px 10px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.lt-button:hover {
+    background-color: #feb400;
+    border-color: #feb400;
+    color: #000;
+}
+
+.lt-button.lt-button-active {
+    background-color: #00eeee;
+    border-color: #00eeee;
+    color: #000;
+}
+
+#lt-vkeyboard {
+    display: none;
+    margin-top: 14px;
+}
+
+#lt-vkeyboard.lt-vkeyboard-visible {
+    display: block;
+}
+
+.lt-vkeyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.lt-vkey {
+    min-width: 20px;
+    padding: 3px 0;
+    text-align: center;
+    color: #00eeee;
+    border: 1px solid #1b2f2d;
+    border-radius: 2px;
+    font-size: 9px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.lt-vkey.lt-vkey-wide {
+    padding: 3px 6px;
+}
+
+.lt-vkey[data-key=" "] {
+    width: 50%;
+}
+
+.lt-vkey:hover, .lt-vkey.lt-vkey-pressed {
+    background-color: #fff;
+    color: #000;
+}
+
+/* Sleep mode covers everything until a key or click */
+#lt-sleep {
+    display: none;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    z-index: 1000;
+    cursor: pointer;
+    text-align: center;
+}
+
+#lt-sleep-title {
+    margin-top: 40vh;
+    font-size: 14pt;
+    letter-spacing: 4px;
+}
+
+#lt-sleep-hint {
+    margin-top: 16px;
+    color: #6fc0ba;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    animation: pulsate 5s ease-out infinite;
 }
 
 #lt-command-lines {
@@ -311,7 +419,7 @@ ul {
 }
 
 .response .alert{
-    font-color: #aa0000;
+    color: #e31b1b;
 }
 
 .response .highlight{
@@ -439,10 +547,11 @@ ul {
         display: none;
     }
 
-    #lt-left-column {
+    /* the old left column (bandwidth, footer) was hidden here */
+    #lt-bandwidth, #lt-header-bottom {
         display: none;
     }
-    #lt-right-column {
+    #lt-main-column {
         left: 0;
         top: 0;
         width: 330px;
@@ -479,7 +588,7 @@ ul {
         box-shadow: none;
         border: none;
     }
-    #lt-header-top-right {
+    #lt-header-top {
         position: absolute;
         top: 0;
     }
@@ -560,15 +669,9 @@ ul {
         height: 750px;
     }
 
-    #lt-left-column{
-        /*width: 380px;*/
-        width: 580px;
-    }
-
-    #lt-right-column{
-        position: absolute;
-        left: 700px;
-        width: 680px;
+    /* left 52..632px and right 700..1380px, merged */
+    #lt-main-column{
+        width: 1328px;
     }
 
 
@@ -581,7 +684,7 @@ ul {
         padding: 0 8px;
     }
 
-    #lt-header-bottom-left {
+    #lt-header-bottom {
         position: absolute;
         top: 700px;
     }
@@ -615,11 +718,10 @@ ul {
 
     #lt-bandwidth {
         top: 490px;
-        width: 570px;
     }
 
-    #lt-globalization {
-        width: 680px;
+    #lt-webglCanvas {
+        height: 150px;
     }
 
     #lt-globalization .content {
@@ -627,9 +729,27 @@ ul {
     }
 
     #lt-command-line {
-        width: 440px;
-        height: 185px;
+        height: 320px;
         margin-top:20px;
+    }
+
+    #lt-login-side {
+        margin-top: 27px;
+    }
+
+    .lt-button {
+        font-size: 10pt;
+        padding: 4px 14px;
+    }
+
+    .lt-vkey {
+        min-width: 30px;
+        padding: 5px 0;
+        font-size: 10pt;
+    }
+
+    .lt-vkey.lt-vkey-wide {
+        padding: 5px 10px;
     }
 
     .response {
@@ -639,7 +759,7 @@ ul {
     }
 
     .response .alert{
-        font-color: #aa0000;
+        color: #e31b1b;
     }
 
     .response .highlight{
@@ -688,11 +808,6 @@ ul {
 
     #lt-thumbprint {
         top: 630px;
-    }
-
-    #lt-bandwidth canvas {
-        width: 100%;
-
     }
 
     .folder-big {
