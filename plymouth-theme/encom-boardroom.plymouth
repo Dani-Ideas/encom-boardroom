@@ -1,0 +1,11 @@
+[Plymouth Theme]
+Name=Encom Boardroom
+Description=Encom OS12 boot console in the style of the encom-boardroom login screen
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/encom-boardroom
+ScriptFile=/usr/share/plymouth/themes/encom-boardroom/encom-boardroom.script
+# mkinitcpio's plymouth hook copies these fonts into the initramfs
+Font=Inconsolata 12
+MonospaceFont=Inconsolata 12

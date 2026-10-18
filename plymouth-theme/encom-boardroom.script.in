@@ -1,0 +1,346 @@
+# Encom Boardroom Plymouth theme (template: make-theme.py fills in the @...@
+# layout numbers and writes build/encom-boardroom.script).
+#
+# background.png has everything static: the frame, headers and panels of the
+# SDDM login theme. This script adds the moving parts: a boot console with
+# timed messages, the progress bar with the real boot status, the pulsing
+# DANI-IDEAS badge and thumbprint, and a password prompt if one is asked for.
+# Coordinates are in 1920x1080 design pixels, mapped to the screen by X() / Y().
+
+#----------------------------------------- Layout --------------------------------
+
+design.w = @DESIGN_W@;
+design.h = @DESIGN_H@;
+term.x = @TERM_X@;
+term.y = @TERM_Y@;
+term.indent = @TERM_INDENT@;
+term.line_h = @TERM_LINE_H@;
+term.rows = @TERM_ROWS@;
+badge.x = @BADGE_X@;
+badge.y = @BADGE_Y@;
+status.x = @STATUS_X@;
+status.y = @STATUS_Y@;
+percent.x = @PERCENT_X@;
+bar.x = @BAR_X@;
+bar.y = @BAR_Y@;
+thumb.x = @THUMB_X@;
+thumb.y = @THUMB_Y@;
+
+font_big = "Inconsolata 12";
+font_small = "Inconsolata 10";
+
+#----------------------------------------- Screen --------------------------------
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+# Fit the design into the screen, centred, keeping its proportions.
+scale = Window.GetWidth() / design.w;
+if (Window.GetHeight() / design.h < scale)
+  scale = Window.GetHeight() / design.h;
+offset.x = Window.GetX() + (Window.GetWidth() - design.w * scale) / 2;
+offset.y = Window.GetY() + (Window.GetHeight() - design.h * scale) / 2;
+
+fun X (x)
+  {
+    return offset.x + x * scale;
+  }
+
+fun Y (y)
+  {
+    return offset.y + y * scale;
+  }
+
+fun scaled (image)
+  {
+    if (scale == 1)
+      return image;
+    return image.Scale (Math.Int (image.GetWidth () * scale), Math.Int (image.GetHeight () * scale));
+  }
+
+background.sprite = Sprite (scaled (Image ("background.png")));
+background.sprite.SetPosition (X (0), Y (0), 0);
+
+mode = Plymouth.GetMode ();
+shutting_down = (mode == "shutdown" || mode == "reboot");
+
+#----------------------------------------- Badge and thumbprint --------------------------------
+
+badge.glow = Sprite (scaled (Image ("badge-glow.png")));
+badge.glow.SetPosition (X (badge.x), Y (badge.y), 5);
+badge.sprite = Sprite (scaled (Image ("badge.png")));
+badge.sprite.SetPosition (X (badge.x), Y (badge.y), 6);
+badge.sprite.SetOpacity (0);
+badge.glow.SetOpacity (0);
+
+thumb.sprite = Sprite (scaled (Image ("thumbprint.png")));
+thumb.sprite.SetPosition (X (thumb.x), Y (thumb.y), 5);
+
+#----------------------------------------- Console --------------------------------
+
+# Rows of the boot console: text, kind ("command" big and flush left,
+# "response" small and indented, "ready" small yellow) and an optional tag
+# like "OK" shown after the text.
+term.count = 0;
+cursor.image = scaled (Image ("cursor.png"));
+cursor.sprite = Sprite (cursor.image);
+cursor.sprite.SetOpacity (0);
+
+fun render_rows ()
+  {
+    for (i = 0; i < term.count; i++)
+      {
+        if (term.kind[i] == "command")
+          {
+            image = Image.Text (term.text[i], 1, 1, 1, 1, font_big);
+            x = X (term.x);
+          }
+        else if (term.kind[i] == "ready")
+          {
+            image = Image.Text (term.text[i], 1, 0.8, 0, 1, font_small);
+            x = X (term.x + term.indent);
+          }
+        else
+          {
+            image = Image.Text (term.text[i], 1, 1, 1, 1, font_small);
+            x = X (term.x + term.indent);
+          }
+        y = Y (term.y + i * term.line_h);
+
+        if (!term.sprite[i])
+          term.sprite[i] = Sprite ();
+        term.sprite[i].SetImage (image);
+        term.sprite[i].SetPosition (x, y, 10);
+        term.sprite[i].SetOpacity (1);
+
+        if (!term.tag_sprite[i])
+          term.tag_sprite[i] = Sprite ();
+        if (term.tag[i] == "")
+          {
+            term.tag_sprite[i].SetOpacity (0);
+          }
+        else
+          {
+            term.tag_sprite[i].SetImage (Image.Text ("[ " + term.tag[i] + " ]", 0, 0.933, 0.933, 1, font_small));
+            term.tag_sprite[i].SetPosition (x + image.GetWidth () + 10, y, 10);
+            term.tag_sprite[i].SetOpacity (1);
+          }
+
+        if (i == term.count - 1)
+          {
+            cursor.x = x + image.GetWidth () + 4;
+            cursor.y = y + (image.GetHeight () - cursor.image.GetHeight ()) / 2;
+          }
+      }
+    cursor.sprite.SetPosition (cursor.x, cursor.y, 11);
+  }
+
+fun add_line (text, kind, tag)
+  {
+    if (term.count >= term.rows)
+      {
+        for (i = 0; i < term.rows - 1; i++)
+          {
+            term.text[i] = term.text[i + 1];
+            term.kind[i] = term.kind[i + 1];
+            term.tag[i] = term.tag[i + 1];
+          }
+        term.count = term.rows - 1;
+      }
+    term.text[term.count] = text;
+    term.kind[term.count] = kind;
+    term.tag[term.count] = tag;
+    term.count = term.count + 1;
+    render_rows ();
+  }
+
+# The scripted sequence: each line appears once the boot has got this far
+# (boot progress 0..1, or seconds/5 when shutting down), at most one line
+# every quarter second so they come in like a console.
+if (shutting_down)
+  {
+    if (mode == "reboot")
+      headline = "encom-os12: restart sequence initiated";
+    else
+      headline = "encom-os12: shutdown sequence initiated";
+    seq.text[0] = ">>encom-sh: closing user sessions";           seq.at[0] = 0.05;
+    seq.text[1] = ">>encom-sh: stopping system services";        seq.at[1] = 0.20;
+    seq.text[2] = ">>encom-sh: saving system state";             seq.at[2] = 0.35;
+    seq.text[3] = ">>encom-sh: unmounting file systems";         seq.at[3] = 0.50;
+    seq.text[4] = ">>encom-sh: disconnecting globalization grid"; seq.at[4] = 0.65;
+    seq.text[5] = ">>encom-sh: powering down core";              seq.at[5] = 0.80;
+    seq.count = 6;
+    status.label = "SHUTDOWN SEQUENCE";
+  }
+else
+  {
+    headline = "encom-os12 boot: ENCOM OS12 boot sequence initiated";
+    seq.text[0] = ">>encom-sh: loading kernel modules";           seq.at[0] = 0.02;
+    seq.text[1] = ">>encom-sh: mounting root file system";        seq.at[1] = 0.10;
+    seq.text[2] = ">>encom-sh: checking file systems";            seq.at[2] = 0.20;
+    seq.text[3] = ">>encom-sh: starting device manager";          seq.at[3] = 0.32;
+    seq.text[4] = ">>encom-sh: initializing graphics core";       seq.at[4] = 0.45;
+    seq.text[5] = ">>encom-sh: bringing up network interfaces";   seq.at[5] = 0.58;
+    seq.text[6] = ">>encom-sh: starting system services";         seq.at[6] = 0.70;
+    seq.text[7] = ">>encom-sh: synchronizing system clock";       seq.at[7] = 0.82;
+    seq.text[8] = ">>encom-sh: launching secure login";           seq.at[8] = 0.92;
+    seq.count = 9;
+    status.label = "BOOT SEQUENCE";
+  }
+seq.next = 0;
+seq.next_time = 0.6;
+seq.ready_shown = 0;
+
+add_line (headline, "command", "");
+
+#----------------------------------------- Progress --------------------------------
+
+bar.source = scaled (Image ("bar-fill.png"));
+bar.sprite = Sprite ();
+bar.sprite.SetPosition (X (bar.x), Y (bar.y), 5);
+bar.width = -1;
+
+percent.sprite = Sprite ();
+percent.shown = -1;
+status.sprite = Sprite ();
+status.text = "";
+status.dirty = 1;
+
+boot_progress = 0;
+
+fun progress_callback (duration, progress)
+  {
+    global.boot_progress = progress;
+  }
+Plymouth.SetBootProgressFunction (progress_callback);
+
+# Real status updates from the boot (usually the service being started).
+fun update_status_callback (text)
+  {
+    global.status.text = text;
+    global.status.dirty = 1;
+  }
+Plymouth.SetUpdateStatusFunction (update_status_callback);
+
+fun message_callback (text)
+  {
+    add_line (">>encom-sh: " + text, "response", "");
+  }
+Plymouth.SetMessageFunction (message_callback);
+
+#----------------------------------------- Password --------------------------------
+
+# Only shown if something asks (an encrypted disk, for instance): the console
+# prints the prompt and one * per typed character, like the login terminal.
+password.active = 0;
+
+fun display_password_callback (prompt, bullets)
+  {
+    stars = "";
+    for (i = 0; i < bullets; i++)
+      stars = stars + "*";
+    if (prompt == "")
+      prompt = "Password:";
+    if (!password.active)
+      {
+        add_line (prompt + " " + stars, "command", "");
+        global.password.active = 1;
+      }
+    else
+      {
+        term.text[term.count - 1] = prompt + " " + stars;
+        render_rows ();
+      }
+  }
+
+fun display_normal_callback ()
+  {
+    global.password.active = 0;
+  }
+
+Plymouth.SetDisplayPasswordFunction (display_password_callback);
+Plymouth.SetDisplayNormalFunction (display_normal_callback);
+
+#----------------------------------------- Animation --------------------------------
+
+frame = 0;
+
+fun refresh_callback ()
+  {
+    global.frame = frame + 1;
+    time = frame / 50;
+
+    # badge: fade in, then a glow pulsing once a second (like #screensaver)
+    intro = time / 0.5;
+    if (intro > 1)
+      intro = 1;
+    badge.sprite.SetOpacity (intro);
+    badge.glow.SetOpacity (intro * (0.35 + 0.65 * (Math.Sin (time * 3.14159) + 1) / 2));
+
+    # thumbprint: 0.3 .. 1 every 5 s
+    thumb.sprite.SetOpacity (0.3 + 0.7 * (Math.Sin (time * 2 * 3.14159 / 5) + 1) / 2);
+
+    # cursor blink
+    half_seconds = Math.Int (time * 2);
+    if (half_seconds - Math.Int (half_seconds / 2) * 2 == 0)
+      cursor.sprite.SetOpacity (1);
+    else
+      cursor.sprite.SetOpacity (0);
+
+    if (shutting_down)
+      {
+        shown = time / 5;
+      }
+    else
+      {
+        shown = boot_progress;
+      }
+    if (shown > 1)
+      shown = 1;
+
+    # console sequence
+    if (seq.next < seq.count && time >= seq.next_time && shown >= seq.at[seq.next])
+      {
+        add_line (seq.text[seq.next], "response", "OK");
+        global.seq.next = seq.next + 1;
+        global.seq.next_time = time + 0.25;
+      }
+    if (seq.next >= seq.count && !seq.ready_shown && shown >= 0.97 && !shutting_down)
+      {
+        add_line ("SYSTEM READY. Handing over to the login terminal ...", "ready", "");
+        global.seq.ready_shown = 1;
+      }
+
+    # progress bar and percentage
+    width = Math.Int (bar.source.GetWidth () * shown);
+    if (width < 1)
+      width = 1;
+    if (width != bar.width)
+      {
+        bar.sprite.SetImage (bar.source.Scale (width, bar.source.GetHeight ()));
+        global.bar.width = width;
+      }
+    pct = Math.Int (shown * 100);
+    if (pct != percent.shown)
+      {
+        image = Image.Text (pct + "%", 0, 0.933, 0.933, 1, font_big);
+        percent.sprite.SetImage (image);
+        percent.sprite.SetPosition (X (percent.x) - image.GetWidth (), Y (status.y) - image.GetHeight () / 2, 5);
+        global.percent.shown = pct;
+      }
+
+    # status line: the sequence name and the latest real status
+    if (status.dirty)
+      {
+        if (status.text == "")
+          label = status.label + " ...";
+        else
+          label = status.label + " ... " + status.text;
+        image = Image.Text (label, 1, 1, 1, 1, font_small);
+        status.sprite.SetImage (image);
+        status.sprite.SetPosition (X (status.x), Y (status.y) - image.GetHeight () / 2, 5);
+        global.status.dirty = 0;
+      }
+  }
+
+Plymouth.SetRefreshFunction (refresh_callback);

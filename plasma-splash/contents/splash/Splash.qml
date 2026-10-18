@@ -4,8 +4,9 @@ import QtQuick.Effects
 // Plasma splash screen: the "DANI-IDEAS" badge in the style of the boardroom's
 // stream screen (#screensaver in css/global.css, shown by onSwitch in
 // src/main.js): Terminator font in a thick rounded cyan frame with a pulsing
-// glow, shrinking away with an ease-in-out-back when the desktop is ready.
-// ksplashqml raises `stage` as Plasma starts; 5 means the desktop is up.
+// glow. ksplashqml raises `stage` as Plasma starts and closes the splash when
+// the desktop is ready; on a fast machine that's only ~3 s, so the badge shows
+// from the first frame and stays until then (no fade-in, no early outro).
 Rectangle {
     id: root
     color: "black"
@@ -17,17 +18,11 @@ Rectangle {
 
     FontLoader { id: terminator; source: "terminator.ttf" }
 
-    onStageChanged: {
-        if (stage >= 5)
-            outro.start();
-    }
-
     Item {
         id: badge
         anchors.centerIn: parent
         width: frame.width
         height: frame.height
-        opacity: 0
 
         Rectangle {
             id: frame
@@ -72,19 +67,6 @@ Rectangle {
             }
         }
 
-        NumberAnimation on opacity {
-            id: intro
-            from: 0
-            to: 1
-            duration: 400
-        }
-
-        // onSwitch's exit: scale follows opacity, 600 ms, easeInOutBack
-        ParallelAnimation {
-            id: outro
-            NumberAnimation { target: badge; property: "opacity"; to: 0; duration: 600; easing.type: Easing.InOutBack }
-            NumberAnimation { target: badge; property: "scale"; to: 0; duration: 600; easing.type: Easing.InOutBack }
-        }
     }
 
     // a quiet progress line under the badge: one segment per startup stage

@@ -1,0 +1,16 @@
+{
+    "KPackageStructure": "Plasma/Shell",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "dani-ideas"
+            }
+        ],
+        "Description": "Encom Boardroom lock screen (only the lock screen; everything else comes from the default Plasma desktop shell)",
+        "Id": "com.daniideas.encom.lockscreen",
+        "License": "MIT",
+        "Name": "Encom Boardroom Lock Screen",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}
