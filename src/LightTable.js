@@ -22,10 +22,6 @@ LightTable.init = function(_hideFn){
     $(".lt-header").css("visibility", "hidden");
     $(".content-container").css("visibility", "hidden");
 
-
-    $("#lt-keyboard").css("opacity", 0);
-
-
     webglTest = createWebGlTest();
 
     $("#light-table").css("visibility", "visible");
@@ -74,11 +70,6 @@ LightTable.init = function(_hideFn){
         simulateCommand("cd unknown$");
     });
 
-    $("#lt-keyboard div").mousedown(function(event){
-        event.preventDefault();
-        keyClick(parseInt($(this).attr("id").split("-")[1]));
-    });
-
     initialized = true;
 };
 
@@ -88,11 +79,9 @@ LightTable.show = function(cb){
     // do the intro animations
     showContainer();
     setTimeout(showHeaders, 500);
-    showContentBoxes($("#lt-readme"), 0);
 
     showContentBoxes($("#lt-bandwidth"), 100);
     showContentBoxes($("#lt-globalization"), 200);
-    showKeyboard();
 
     if($("#lt-mobile-readme").width() > 0){
         showContentBoxes($("#lt-mobile-readme"), 0);
@@ -128,7 +117,6 @@ LightTable.hide = function(cb) {
     }, 500);
 
     setTimeout(function(){
-        hideKeyboard();
         hideContainer();
         hideWebgl();
     }, 500);
@@ -168,6 +156,13 @@ LightTable.resize = function(){
 LightTable.message = function(message){
     lastMessageTime = Date.now();
 
+    if(message.stream === "system"){
+        if(webglTest){   // messages can arrive before init()
+            webglTest.addSample(message);
+        }
+        return;
+    }
+
     if(message.stream === "meta" && message.size > 0){
         $("#datalink-status").text("CONNECTED. " + message.size + " USER" + (parseInt(message.size,10) === 1 ? "" : "S "));
         $("#datalink-status").css("color", "green");
@@ -176,6 +171,34 @@ LightTable.message = function(message){
 };
 
 /* private functions */
+
+/* Bandwidth panel channels: one side of the tube each, in this order.
+ * minScale marks a rate (bytes/s) and is the smallest full-scale value. */
+var SYSTEM_CHANNELS = [
+    {key: "ram", label: "RAM", color: "#00eeee"},
+    {key: "cpu", label: "CPU", color: "#ffcc00"},
+    {key: "netDown", label: "NET", color: "#ffffff", minScale: 1e6},
+    {key: "diskWrite", label: "DISK", color: "#ff5050", minScale: 5e6}
+];
+var SYSTEM_SAMPLES = 150,     // history length; at one sample a second, 2.5 minutes
+    SYSTEM_INTERVAL = 1000;   // ms between samples, as sent by the server and Feeds.js
+
+function formatRate(bytes){
+    if(bytes >= 1e6){
+        return (bytes / 1e6).toFixed(1) + " MB/s";
+    }
+    return Math.round(bytes / 1e3) + " KB/s";
+}
+
+function showSystemStats(stats){
+    var html = SYSTEM_CHANNELS.map(function(channel){
+        var value = stats[channel.key];
+        var text = value === null || value === undefined ? "--"
+                 : channel.minScale ? formatRate(value) : Math.round(value) + "%";
+        return '<span style="color: ' + channel.color + '">' + channel.label + " " + text + "</span>";
+    }).join(" ");
+    $("#lt-sysstats").html(html + (stats.example ? ' <span class="lt-sysstats-example">(EJEMPLO)</span>' : ""));
+}
 
 function showContainer(){
     var outside = $("#lt-container-outside");
@@ -297,21 +320,6 @@ function hideContainer(){
 
 function showHeaders(){
 
-    var aHeight = $("#lt-header-bottom-right").position().top - 35;
-
-    setTimeout(function doHeaderAnimations(){
-
-        $(".lt-header-animator-outside").css({visibility: "visible"}).animate({
-            top: "25px",
-            height: aHeight + 28 + "px"
-        }, 500);
-
-        $(".lt-header-animator-inside").css({visibility: "visible"}).delay(100).animate({
-            top: "39px",
-            height: aHeight + "px"
-        }, 500);
-    }, 500);
-
     setTimeout(function showHeaders(){
         $(".lt-header").css("visibility", "visible");
         $(".content-container").css("visibility", "visible");
@@ -383,29 +391,8 @@ function hideContentBoxes(){
     });
 }
 
-function showKeyboard(){
-
-    var keyboard = $("#lt-keyboard");
-    var spaceBar = $("#k-32");
-    var spaceBarWidth = spaceBar.width();
-
-    spaceBar.width(0);
 
 
-    keyboard.delay(2000).animate({
-        opacity: 1
-    }, 2000);
-
-    spaceBar.delay(2200).animate({
-        width: spaceBarWidth
-    },500);
-
-}
-
-function hideKeyboard(){
-    var keyboard = $("#lt-keyboard");
-    keyboard.css("opacity", 0);
-}
 
 function createWebGlTest(){
     var canvas = document.getElementById('lt-webglCanvas');
@@ -416,7 +403,7 @@ function createWebGlTest(){
     var scene = new THREE.Scene();
     var splineGeometry = new Utils.VertexGeometry();
     var splineMaterial = new THREE.LineBasicMaterial({
-        color: 0x6FC0BA,
+        vertexColors: true,   // each channel has its own color (SYSTEM_CHANNELS)
         opacity: 0,
         transparent: true
     });
@@ -436,17 +423,63 @@ function createWebGlTest(){
 
     var lastRenderDate = new Date();
 
-    var calc = function(x){
-        return (x+200)*(x+100)*(x+280)*(x+10)*(x-300)*(x-250)*(x-150) / Math.pow(10,14)/1.5;
+    /* The tube is the system monitor: x is time (newest sample on the right),
+     * and each of its sides is one channel whose radius is that channel's value.
+     * Point i belongs to sample floor(i / channels) and channel i % channels. */
+    // Span the visible width, minus the camera's ±20 sway and a margin.
+    var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect,
+        span = 2 * (visibleHalfWidth - 40);
+
+    var channels = SYSTEM_CHANNELS.length,
+        points = SYSTEM_SAMPLES * channels,
+        step = span / (points - 1),       // x distance between points
+        history = [],
+        sampled = false;
+
+    for(var t = 0; t < SYSTEM_SAMPLES; t++){
+        history.push(SYSTEM_CHANNELS.map(function(){ return 0; }));
     }
 
-    for(var i = 0; i< 500; i++){
-        var y = calc(i-250) * Math.sin(2 * Math.PI * (i % 6) / 6 + i/500) + Math.cos(i) * 5;
-        var z = calc(i-250) * Math.cos(2 * Math.PI * (i % 6) / 6 + i/500);
-        splineGeometry.vertices.push(new THREE.Vector3(i - 250, y, z));
+    for(var i = 0; i < points; i++){
+        splineGeometry.vertices.push(new THREE.Vector3(i * step - span / 2, 0, 0));
     }
     var splineLine = new THREE.Line(splineGeometry.build(), splineMaterial);
     scene.add(splineLine);
+
+    var colors = new Float32Array(points * 3);
+    for(var i = 0; i < points; i++){
+        new THREE.Color(SYSTEM_CHANNELS[i % channels].color).toArray(colors, i * 3);
+    }
+    splineGeometry.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    // Rates have no fixed maximum: scale them to the largest value on screen.
+    var channelScale = function(k){
+        var channel = SYSTEM_CHANNELS[k];
+        if(!channel.minScale){
+            return 100;   // percentages
+        }
+        return history.reduce(function(max, sample){
+            return Math.max(max, sample[k]);
+        }, channel.minScale);
+    };
+
+    var rebuild = function(){
+        var scales = SYSTEM_CHANNELS.map(function(channel, k){ return channelScale(k); });
+        for(var i = 0; i < points; i++){
+            var k = i % channels,
+                value = Math.min(1, history[Math.floor(i / channels)][k] / scales[k]),
+                radius = 3 + value * 35,
+                angle = 2 * Math.PI * k / channels + i / points,
+                vertex = splineGeometry.vertices[i];
+            vertex.y = radius * Math.sin(angle);
+            vertex.z = radius * Math.cos(angle);
+        }
+        splineGeometry.verticesNeedUpdate = true;
+        splineGeometry.update();
+    };
+    rebuild();
+
+    var lastSampleTime = Date.now();
 
     for(var i = 0; i< 25; i++){
         backdropGeometry.vertices.push(new THREE.Vector3(-500,100-i*8,-100));
@@ -497,6 +530,12 @@ function createWebGlTest(){
 
 
             camera.position.x = Math.sin(cameraAngle) * 20;
+
+            // Slide left between samples so the history scrolls smoothly; each
+            // new sample moves the points back by exactly this distance.
+            var sinceSample = Math.min(1, (Date.now() - lastSampleTime) / SYSTEM_INTERVAL);
+            splineLine.position.x = -sinceSample * channels * step;
+
             renderer.render(scene, camera );
 
             splineLine.rotation.x += .01;
@@ -504,6 +543,22 @@ function createWebGlTest(){
         }, 
         reset: function(){
             firstRun = null;
+        },
+        // stats: a {stream: "system"} message (see system-stats.js / Feeds.js)
+        addSample: function(stats){
+            var sample = SYSTEM_CHANNELS.map(function(channel){
+                return stats[channel.key] || 0;
+            });
+            if(!sampled){
+                // Start from the first reading instead of an empty history.
+                sampled = true;
+                history = history.map(function(){ return sample.slice(); });
+            }
+            history.shift();
+            history.push(sample);
+            lastSampleTime = Date.now();
+            rebuild();
+            showSystemStats(stats);
         }
     };
 
@@ -774,21 +829,6 @@ function writeKeyStroke(keycode){
             var key = String.fromCharCode(keycode).toLowerCase();
         txt.append(key)
     };
-
-}
-
-function keyClick(keycode){
-
-    // light up the keyboard
-
-    toggleKey($("#k-" + keycode));
-
-    if(keycode === 16){
-        toggleKey($("#k-0"));
-    }
-
-    // write it to the screen
-    writeKeyStroke(keycode);
 
 }
 

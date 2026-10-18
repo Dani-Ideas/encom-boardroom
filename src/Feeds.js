@@ -58,6 +58,13 @@ Feeds.prototype.startDirect = function(){
     heartbeat();
     setInterval(heartbeat, 3000);
 
+    // The browser can't read this machine's stats; without the server the
+    // light table's bandwidth panel shows made-up ones.
+    var example = exampleSystemStats();
+    setInterval(function(){
+        _this.onMessage(example());
+    }, 1000);
+
     setInterval(function(){
         for(var i = 0; i < MAX_PER_SECOND && _this.queue.length; i++){
             _this.onMessage(_this.queue.shift());
@@ -141,5 +148,19 @@ Feeds.prototype.startGithub = function(){
     };
     poll();
 };
+
+/* Plausible-looking RAM/CPU/network/disk values, in the same format as the
+ * server's {stream: "system"} messages: RAM drifts slowly, CPU wanders with
+ * occasional spikes, network and disk come in bursts. */
+function exampleSystemStats(){
+    var ram = 40, cpu = 10, net = 0, disk = 0;
+    return function(){
+        ram = Math.min(90, Math.max(20, ram + (Math.random() - 0.5) * 2));
+        cpu = Math.min(100, Math.max(2, cpu * 0.7 + Math.random() * 8 + (Math.random() < 0.1 ? 50 : 0)));
+        net = Math.random() < 0.2 ? Math.random() * 3e6 : net * 0.5;
+        disk = Math.random() < 0.1 ? Math.random() * 2e7 : disk * 0.3;
+        return {stream: "system", example: true, ram: ram, cpu: cpu, netDown: net, diskWrite: disk};
+    };
+}
 
 module.exports = Feeds;

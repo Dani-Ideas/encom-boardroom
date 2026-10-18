@@ -8,7 +8,8 @@
 
 var express = require("express"),
     path = require("path"),
-    streams = require("./src/streams.js");
+    streams = require("./src/streams.js"),
+    systemStats = require("./system-stats.js");
 
 var PORT = process.env.PORT || 8000,
     GITHUB_TOKEN = process.env.GITHUB_TOKEN,
@@ -61,6 +62,15 @@ app.get("/events.js", function(req, res){
 setInterval(function(){
     sendData({stream: "meta", type: "heartbeat", size: openConnections.size});
 }, 3000);
+
+// This machine's RAM, CPU, download and disk writes for the light table's
+// bandwidth panel (fields are null where /proc isn't available).
+systemStats.sample();
+setInterval(function(){
+    var stats = systemStats.sample();
+    stats.stream = "system";
+    sendData(stats);
+}, 1000);
 
 /* helpers */
 

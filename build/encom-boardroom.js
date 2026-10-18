@@ -55770,13 +55770,10 @@ void main() {
     if (hasRequiredLightTable) return LightTable_1;
     hasRequiredLightTable = 1;
     var $ = requireJquery(), THREE = /* @__PURE__ */ requireThree(), Utils = requireUtils$1();
-    var webglTest, active = false, initialized = false, currentWidth = 0, hideFn = function() {
-    }, LightTable = {}, lastMessageTime = null, dataStreamOn = false;
+    var webglTest, active = false, initialized = false, currentWidth = 0, LightTable = {}, lastMessageTime = null, dataStreamOn = false;
     LightTable.init = function(_hideFn) {
-      hideFn = _hideFn;
       $(".lt-header").css("visibility", "hidden");
       $(".content-container").css("visibility", "hidden");
-      $("#lt-keyboard").css("opacity", 0);
       webglTest = createWebGlTest();
       $("#light-table").css("visibility", "visible");
       currentWidth = $(window).width();
@@ -55813,20 +55810,14 @@ void main() {
         $(this).find(".folder-big").css("background-color", "#fff");
         simulateCommand("cd unknown$");
       });
-      $("#lt-keyboard div").mousedown(function(event) {
-        event.preventDefault();
-        keyClick(parseInt($(this).attr("id").split("-")[1]));
-      });
       initialized = true;
     };
     LightTable.show = function(cb) {
       $("#light-table").css("opacity", 1);
       showContainer();
       setTimeout(showHeaders, 500);
-      showContentBoxes($("#lt-readme"), 0);
       showContentBoxes($("#lt-bandwidth"), 100);
       showContentBoxes($("#lt-globalization"), 200);
-      showKeyboard();
       if ($("#lt-mobile-readme").width() > 0) {
         showContentBoxes($("#lt-mobile-readme"), 0);
       }
@@ -55852,7 +55843,6 @@ void main() {
         opacity: 0
       }, 500);
       setTimeout(function() {
-        hideKeyboard();
         hideContainer();
         hideWebgl();
       }, 500);
@@ -55882,11 +55872,38 @@ void main() {
     };
     LightTable.message = function(message) {
       lastMessageTime = Date.now();
+      if (message.stream === "system") {
+        if (webglTest) {
+          webglTest.addSample(message);
+        }
+        return;
+      }
       if (message.stream === "meta" && message.size > 0) {
         $("#datalink-status").text("CONNECTED. " + message.size + " USER" + (parseInt(message.size, 10) === 1 ? "" : "S "));
         $("#datalink-status").css("color", "green");
       }
     };
+    var SYSTEM_CHANNELS = [
+      { key: "ram", label: "RAM", color: "#00eeee" },
+      { key: "cpu", label: "CPU", color: "#ffcc00" },
+      { key: "netDown", label: "NET", color: "#ffffff", minScale: 1e6 },
+      { key: "diskWrite", label: "DISK", color: "#ff5050", minScale: 5e6 }
+    ];
+    var SYSTEM_SAMPLES = 150, SYSTEM_INTERVAL = 1e3;
+    function formatRate(bytes) {
+      if (bytes >= 1e6) {
+        return (bytes / 1e6).toFixed(1) + " MB/s";
+      }
+      return Math.round(bytes / 1e3) + " KB/s";
+    }
+    function showSystemStats(stats) {
+      var html = SYSTEM_CHANNELS.map(function(channel) {
+        var value = stats[channel.key];
+        var text = value === null || value === void 0 ? "--" : channel.minScale ? formatRate(value) : Math.round(value) + "%";
+        return '<span style="color: ' + channel.color + '">' + channel.label + " " + text + "</span>";
+      }).join(" ");
+      $("#lt-sysstats").html(html + (stats.example ? ' <span class="lt-sysstats-example">(EJEMPLO)</span>' : ""));
+    }
     function showContainer() {
       var outside = $("#lt-container-outside");
       var inside = $("#lt-container-inside");
@@ -55981,17 +55998,6 @@ void main() {
       $(".content-container").css("opacity", 0);
     }
     function showHeaders() {
-      var aHeight = $("#lt-header-bottom-right").position().top - 35;
-      setTimeout(function doHeaderAnimations() {
-        $(".lt-header-animator-outside").css({ visibility: "visible" }).animate({
-          top: "25px",
-          height: aHeight + 28 + "px"
-        }, 500);
-        $(".lt-header-animator-inside").css({ visibility: "visible" }).delay(100).animate({
-          top: "39px",
-          height: aHeight + "px"
-        }, 500);
-      }, 500);
       setTimeout(function showHeaders2() {
         $(".lt-header").css("visibility", "visible");
         $(".content-container").css("visibility", "visible");
@@ -56033,22 +56039,6 @@ void main() {
         });
       }, 2200);
     }
-    function showKeyboard() {
-      var keyboard = $("#lt-keyboard");
-      var spaceBar = $("#k-32");
-      var spaceBarWidth = spaceBar.width();
-      spaceBar.width(0);
-      keyboard.delay(2e3).animate({
-        opacity: 1
-      }, 2e3);
-      spaceBar.delay(2200).animate({
-        width: spaceBarWidth
-      }, 500);
-    }
-    function hideKeyboard() {
-      var keyboard = $("#lt-keyboard");
-      keyboard.css("opacity", 0);
-    }
     function createWebGlTest() {
       var canvas = document.getElementById("lt-webglCanvas");
       var renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -56058,7 +56048,8 @@ void main() {
       var scene = new THREE.Scene();
       var splineGeometry = new Utils.VertexGeometry();
       var splineMaterial = new THREE.LineBasicMaterial({
-        color: 7323834,
+        vertexColors: true,
+        // each channel has its own color (SYSTEM_CHANNELS)
         opacity: 0,
         transparent: true
       });
@@ -56072,16 +56063,46 @@ void main() {
       camera.position.z = cameraDistance;
       camera.lookAt(scene.position);
       var lastRenderDate = /* @__PURE__ */ new Date();
-      var calc = function(x) {
-        return (x + 200) * (x + 100) * (x + 280) * (x + 10) * (x - 300) * (x - 250) * (x - 150) / Math.pow(10, 14) / 1.5;
-      };
-      for (var i = 0; i < 500; i++) {
-        var y = calc(i - 250) * Math.sin(2 * Math.PI * (i % 6) / 6 + i / 500) + Math.cos(i) * 5;
-        var z = calc(i - 250) * Math.cos(2 * Math.PI * (i % 6) / 6 + i / 500);
-        splineGeometry.vertices.push(new THREE.Vector3(i - 250, y, z));
+      var visibleHalfWidth = cameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect, span = 2 * (visibleHalfWidth - 40);
+      var channels = SYSTEM_CHANNELS.length, points = SYSTEM_SAMPLES * channels, step = span / (points - 1), history = [], sampled = false;
+      for (var t = 0; t < SYSTEM_SAMPLES; t++) {
+        history.push(SYSTEM_CHANNELS.map(function() {
+          return 0;
+        }));
+      }
+      for (var i = 0; i < points; i++) {
+        splineGeometry.vertices.push(new THREE.Vector3(i * step - span / 2, 0, 0));
       }
       var splineLine = new THREE.Line(splineGeometry.build(), splineMaterial);
       scene.add(splineLine);
+      var colors = new Float32Array(points * 3);
+      for (var i = 0; i < points; i++) {
+        new THREE.Color(SYSTEM_CHANNELS[i % channels].color).toArray(colors, i * 3);
+      }
+      splineGeometry.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      var channelScale = function(k) {
+        var channel = SYSTEM_CHANNELS[k];
+        if (!channel.minScale) {
+          return 100;
+        }
+        return history.reduce(function(max, sample) {
+          return Math.max(max, sample[k]);
+        }, channel.minScale);
+      };
+      var rebuild = function() {
+        var scales = SYSTEM_CHANNELS.map(function(channel, k2) {
+          return channelScale(k2);
+        });
+        for (var i2 = 0; i2 < points; i2++) {
+          var k = i2 % channels, value = Math.min(1, history[Math.floor(i2 / channels)][k] / scales[k]), radius = 3 + value * 35, angle = 2 * Math.PI * k / channels + i2 / points, vertex = splineGeometry.vertices[i2];
+          vertex.y = radius * Math.sin(angle);
+          vertex.z = radius * Math.cos(angle);
+        }
+        splineGeometry.verticesNeedUpdate = true;
+        splineGeometry.update();
+      };
+      rebuild();
+      var lastSampleTime = Date.now();
       for (var i = 0; i < 25; i++) {
         backdropGeometry.vertices.push(new THREE.Vector3(-500, 100 - i * 8, -100));
         backdropGeometry.vertices.push(new THREE.Vector3(500, 100 - i * 8, -100));
@@ -56121,132 +56142,35 @@ void main() {
             }
           }
           camera.position.x = Math.sin(cameraAngle) * 20;
+          var sinceSample = Math.min(1, (Date.now() - lastSampleTime) / SYSTEM_INTERVAL);
+          splineLine.position.x = -sinceSample * channels * step;
           renderer.render(scene, camera);
           splineLine.rotation.x += 0.01;
         },
         reset: function() {
           firstRun = null;
+        },
+        // stats: a {stream: "system"} message (see system-stats.js / Feeds.js)
+        addSample: function(stats) {
+          var sample = SYSTEM_CHANNELS.map(function(channel) {
+            return stats[channel.key] || 0;
+          });
+          if (!sampled) {
+            sampled = true;
+            history = history.map(function() {
+              return sample.slice();
+            });
+          }
+          history.shift();
+          history.push(sample);
+          lastSampleTime = Date.now();
+          rebuild();
+          showSystemStats(stats);
         }
       };
     }
     function hideWebgl() {
       $("#lt-bandwidth").css("opacity", 0);
-    }
-    function writeResponse(txt) {
-      $("#lt-command-lines").append("<div class='response'>&gt;&gt;encom-sh: " + txt + "</div>");
-    }
-    var currentDir = "encom_root";
-    function writePrompt() {
-      $(".command-blinker").removeClass("blink").removeClass("command-blinker");
-      $("#lt-command-lines").append('<div class="command"><span class="prompt">encom-sh:' + currentDir + '$&nbsp;</span><span class="command-text"></span><span class="blink command-blinker">&nbsp;</span></div>');
-    }
-    function writeLs(exec) {
-      var output = "";
-      if (typeof exec != "undefined") {
-        output = [
-          '<div class="ls">encom_root</div>',
-          '<div class="ls">bandwidth</div>',
-          '<div class="ls">framework</div>',
-          '<div class="ls">@arscan</div>',
-          '<div class="ls ls-exec">' + exec + "</div>",
-          '<div class="ls">webgl_test</div>',
-          '<div class="ls">flynn_5</div>',
-          '<div class="ls">&nbsp;</div>',
-          '<div class="ls">os12_demo</div>',
-          '<div class="ls">munkowitz</div>'
-        ].join("");
-      } else {
-        output = [
-          '<div class="ls ls-github">github</div>',
-          '<div class="ls ls-test">test</div>',
-          '<div class="ls ls-wikipedia">wikipedia</div>',
-          '<div class="ls ls-bitcoin">bitcoin</div>',
-          '<div class="ls ls-unknown">unknown</div>'
-        ].join("");
-      }
-      $("#lt-command-lines").append(output);
-    }
-    function executeCommand() {
-      var command = $(".command-text").last().text();
-      if (command == "run github.exe") {
-        if (currentDir == "github") {
-          $(".ls-exec").addClass("ls-highlight");
-          $(".container-border").animate({ opacity: 0 }, 500);
-          setTimeout(function() {
-            hideFn("github");
-          }, 500);
-        } else {
-          writeResponse("<span class='alert'>Error:</span> No such file");
-          writePrompt();
-        }
-      } else if (command == "run wikipedia.exe") {
-        if (currentDir == "wikipedia") {
-          $(".ls-exec").addClass("ls-highlight");
-          $(".container-border").animate({ opacity: 0 }, 500);
-          setTimeout(function() {
-            hideFn("wikipedia");
-          }, 500);
-        } else {
-          writeResponse("<span class='alert'>Error:</span> No such file");
-          writePrompt();
-        }
-      } else if (command == "run test.exe") {
-        if (currentDir == "test") {
-          $(".ls-exec").addClass("ls-highlight");
-          $(".container-border").animate({ opacity: 0 }, 500);
-          setTimeout(function() {
-            hideFn("test");
-          }, 500);
-        } else {
-          writeResponse("<span class='alert'>Error:</span> No such file");
-          writePrompt();
-        }
-      } else if (command == "cd github") {
-        $(".ls-github").addClass("ls-highlight");
-        currentDir = "github";
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-github .folder-label").addClass("selected");
-        writeResponse("Changed directory to <span class='highlight'>github</span>");
-        writePrompt();
-      } else if (command == "cd wikipedia") {
-        $(".ls-wikipedia").addClass("ls-highlight");
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-wikipedia .folder-label").addClass("selected");
-        currentDir = "wikipedia";
-        writeResponse("Changed directory to <span class='highlight'>wikipedia</span>");
-        writePrompt();
-      } else if (command == "cd test") {
-        $(".ls-test").addClass("ls-highlight");
-        $(".folder-label").removeClass("selected");
-        $("#lt-launch-test .folder-label").addClass("selected");
-        currentDir = "test";
-        writeResponse("Changed directory to <span class='highlight'>test</span>");
-        writePrompt();
-      } else if (command == "cd bitcoin") {
-        writeResponse("<span class='alert'>Not yet implemented</span>");
-        writePrompt();
-      } else if (command.indexOf("cd encom") == 0 || command == "cd /") {
-        currentDir = "encom_root";
-        writeResponse("Changed directory to <span class='highlight'>encom_root</span>");
-        writePrompt();
-      } else if (command.indexOf("cd ") == 0) {
-        writeResponse("<span class='alert'>Access denied</span>");
-        writePrompt();
-      } else if (command.indexOf("ls") == 0 && currentDir == "encom_root") {
-        writeLs();
-        writePrompt();
-      } else if (command.indexOf("ls") == 0) {
-        writeLs(currentDir + ".exe");
-        writePrompt();
-      } else if (command.indexOf("run") == 0) {
-        writeResponse("<span class='alert'>Access denied</span>");
-        writePrompt();
-      } else {
-        writeResponse("command not found");
-        writePrompt();
-      }
-      var cl = $("#lt-command-lines");
-      $("#lt-command-line").scrollTop(cl.height());
     }
     var keyBuffer = [];
     var keysRunning = false;
@@ -56286,81 +56210,6 @@ void main() {
         return 27;
       }
       return 0;
-    }
-    function toggleKey(element) {
-      element.css({
-        "background-color": "#fff",
-        "color": "#000"
-      });
-      setTimeout(function() {
-        element.css({
-          "background-color": "#888",
-          "color": "#888"
-        });
-      }, 200);
-      setTimeout(function() {
-        element.css({
-          "background-color": "#000",
-          "color": "#00eeee"
-        });
-      }, 300);
-    }
-    function writeKeyStroke(keycode) {
-      var txt = $(".command-text").last();
-      switch (keycode) {
-        case 8:
-          txt.text(txt.text().substring(0, txt.text().length - 1));
-          break;
-        case 27:
-          txt.text("");
-          break;
-        case 13:
-          executeCommand();
-          break;
-        case 189:
-          txt.append("_");
-          break;
-        case 187:
-          txt.append("=");
-          break;
-        case 219:
-          txt.append("{");
-          break;
-        case 221:
-          txt.append("}");
-          break;
-        case 186:
-          txt.append(";");
-          break;
-        case 222:
-          txt.append("'");
-          break;
-        case 188:
-          txt.append(",");
-          break;
-        case 190:
-          txt.append(".");
-          break;
-        case 191:
-          txt.append("/");
-          break;
-        case 192:
-          txt.append("~");
-          break;
-        case 500:
-          txt.append("");
-          break;
-        default:
-          var key = String.fromCharCode(keycode).toLowerCase();
-          txt.append(key);
-      }
-    }
-    function keyClick(keycode) {
-      toggleKey($("#k-" + keycode));
-      if (keycode === 16) {
-        toggleKey($("#k-0"));
-      }
-      writeKeyStroke(keycode);
     }
     LightTable_1 = LightTable;
     return LightTable_1;
@@ -56494,6 +56343,10 @@ void main() {
       };
       heartbeat();
       setInterval(heartbeat, 3e3);
+      var example = exampleSystemStats();
+      setInterval(function() {
+        _this2.onMessage(example());
+      }, 1e3);
       setInterval(function() {
         for (var i = 0; i < MAX_PER_SECOND && _this2.queue.length; i++) {
           _this2.onMessage(_this2.queue.shift());
@@ -56565,6 +56418,16 @@ void main() {
       };
       poll();
     };
+    function exampleSystemStats() {
+      var ram = 40, cpu = 10, net = 0, disk = 0;
+      return function() {
+        ram = Math.min(90, Math.max(20, ram + (Math.random() - 0.5) * 2));
+        cpu = Math.min(100, Math.max(2, cpu * 0.7 + Math.random() * 8 + (Math.random() < 0.1 ? 50 : 0)));
+        net = Math.random() < 0.2 ? Math.random() * 3e6 : net * 0.5;
+        disk = Math.random() < 0.1 ? Math.random() * 2e7 : disk * 0.3;
+        return { stream: "system", example: true, ram, cpu, netDown: net, diskWrite: disk };
+      };
+    }
     Feeds_1 = Feeds;
     return Feeds_1;
   }

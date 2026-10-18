@@ -47,34 +47,6 @@
                         <div class="lt-header-right-section">OS | 012</div>
                     </div>
 
-                    <div id="lt-readme" class="content-container">
-                        <div class="content">
-                            <h2>
-                                README <span class="alt-1">.TXT</span>
-                                <em>END. PROGRAM</em>
-                            </h2>
-                            <p>
-                            Hello <strong>User</strong>.  This is a reproduction of the graphics in the boardroom scene in Tron: Legacy.  If you have not seen that movie,
-                            check out <a href="http://work.gmunk.com/TRON-Board-Room" target="_blank">this background material on the making of that scene</a> before proceeding.
-                            </p>
-
-                            <p>To make this a bit more fun, the boardroom is configured to visualize live updates from <strong>Github</strong> and <strong>Wikipedia</strong>, 
-                            with more streams to come.  Click on a stream in the window to the right to continue.
-                            </p>
-
-                            <p>
-                            The boardroom visualization requires the use of <a href="http://get.webgl.org/" target="_blank">WebGL</a> 
-                            and <a href="http://www.w3.org/TR/eventsource/" target="_blank">Event Source</a>.  The test below indicates the availability of these features 
-                            on your system.
-                            </p>
-
-                            <p>
-                            This was created by <a href="https://twitter.com/arscan" target="_blank">@arscan</a> as a learning exercise.  It is not affiliated with 
-                            Disney, Tron: Legacy, Encom, Wikipedia or Github in any way. The source is available on <a href="https://github.com/arscan" target="_blank">Github</a>.
-                            </p>
-                        </div>
-                    </div>
-
                     <div id="lt-bandwidth" class="content-container">
                         <div class="content">
                             <h2>
@@ -82,6 +54,7 @@
                                 <em id="datalink">DATALINK: <span id="datalink-status">TESTING...</span></em>
                             </h2>
                             <canvas height="100px" width= "367px" id="lt-webglCanvas"></canvas>
+                            <div id="lt-sysstats"></div>
                         </div>
                     </div>
 
@@ -158,67 +131,6 @@
                         </div>
                     </div>
 
-                    <div id="lt-keyboard">
-                        <div id="k-27">ESC</div>
-                        <div id="k-49">1</div>
-                        <div id="k-50">2</div>
-                        <div id="k-51">3</div>
-                        <div id="k-52">4</div>
-                        <div id="k-53">5</div>
-                        <div id="k-54">6</div>
-                        <div id="k-55">7</div>
-                        <div id="k-56">8</div>
-                        <div id="k-57">9</div>
-                        <div id="k-48">0</div>
-                        <div id="k-189">_</div>
-                        <div id="k-8">BACK</div>
-
-                        <div id="k-9">TAB</div>
-                        <div id="k-81">q</div>
-                        <div id="k-87">w</div>
-                        <div id="k-69">e</div>
-                        <div id="k-82">r</div>
-                        <div id="k-84">t</div>
-                        <div id="k-89">y</div>
-                        <div id="k-85">u</div>
-                        <div id="k-73">i</div>
-                        <div id="k-79">o</div>
-                        <div id="k-80">p</div>
-                        <div id="k-219">()</div>
-
-                        <div id="k-500">CAPS</div>
-                        <div id="k-65">a</div>
-                        <div id="k-83">s</div>
-                        <div id="k-68">d</div>
-                        <div id="k-70">f</div>
-                        <div id="k-71">g</div>
-                        <div id="k-72">h</div>
-                        <div id="k-74">j</div>
-                        <div id="k-75">k</div>
-                        <div id="k-76">l</div>
-                        <div id="k-186">;</div>
-                        <div id="k-13">ENTER</div>
-
-                        <div id="k-16">SHIFT</div>
-                        <div id="k-90">z</div>
-                        <div id="k-88">x</div>
-                        <div id="k-67">c</div>
-                        <div id="k-86">v</div>
-                        <div id="k-66">b</div>
-                        <div id="k-78">n</div>
-                        <div id="k-77">m</div>
-                        <div id="k-188">,</div>
-                        <div id="k-190">.</div>
-                        <div id="k-191">/</div>
-                        <div id="k-0">SHIFT</div>
-
-                        <div id="k-32"></div>
-                    </div>
-
-                    <div class="lt-header" id="lt-header-bottom-right">
-                        <div class="lt-header-left-section">TOUCHPOINT KEYBOARD ... <span class="alt-1">INTERACTION SEQUENCING</span></div>
-                        <div class="lt-header-right-section">SYS | O12</div>
-                    </div>
                     <div id="lt-mobile-readme" class="content-container">
                         <div class="content">
                             <h2>

@@ -148,10 +148,7 @@ ul {
 }
 
 
-#lt-header-bottom-right {
-    position: absolute;
-    top: 550px;
-}
+
 
 .lt-header-animator-left {
     position: absolute;
@@ -211,16 +208,7 @@ ul {
 
 }
 
-#lt-readme {
-    position: absolute;
-    top: 60px;
-    overflow: hidden;
-}
 
-#lt-readme .content {
-    height: 300px;
-    overflow: hidden;
-}
 #lt-mobile-readme {
     position: absolute;
     top: 260px;
@@ -237,6 +225,24 @@ ul {
 #lt-bandwidth {
     position: absolute;
     top: 390px;
+}
+
+/* RAM / CPU / NET / DISK readout over the bandwidth tube */
+#lt-sysstats {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    font-size: 9px;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+#lt-sysstats span {
+    margin-right: 8px;
+}
+
+#lt-sysstats .lt-sysstats-example {
+    color: #666;
 }
 
 #lt-globalization {
@@ -379,54 +385,6 @@ ul {
     height: 49px;
 }
 
-#lt-keyboard {
-    margin-left: 8px;
-    position: absolute;
-    top: 355px;
-    width: 470px;
-}
-
-#lt-keyboard div{
-    background-color: rgba(255,255,255,0);
-    border-radius: 5px;
-    float: left;
-    width: 35px;
-    text-align:center;
-    padding-top: 10px;
-    margin-top: 5px;
-    height: 20px;
-    font-size: 12px;
-    text-transform: uppercase;
-    color: #00eeee;
-    cursor: pointer;
-}
-
-#lt-keyboard #k-9{
-    clear: both;
-    margin-left:10px;
-}
-
-#lt-keyboard #k-500{
-    clear: both;
-    margin-left:20px;
-}
-
-#lt-keyboard #k-16{
-    clear: both;
-    margin-left:5px;
-}
-
-#lt-keyboard #k-32 {
-    clear: both;
-    width: 300px;
-    height: 5px;
-    border: 1px solid #00eeee;
-    border-radius: 3px;
-    margin-top: 10px;
-    margin-left: 80px;
-
-
-}
 
 #lt-far-right-column {
     position: absolute;
@@ -472,7 +430,7 @@ ul {
     50% {opacity: 1.0;}
     100% {opacity: 0.3;}
 }
-}
+
 
 
 @media (max-width: 1100px) { 
@@ -511,10 +469,6 @@ ul {
         border: none;
     }
 
-    #lt-keyboard {
-        display: none;
-    }
-
     #lt-container-inside {
         position:absolute;
         left: 0;
@@ -528,11 +482,6 @@ ul {
     #lt-header-top-right {
         position: absolute;
         top: 0;
-    }
-
-    #lt-header-bottom-right {
-        position: absolute;
-        top: 580px;
     }
 
     .lt-header-left-section {
@@ -656,26 +605,12 @@ ul {
         width: 35px;
     }
 
-    #lt-header-bottom-right {
-        position: absolute;
-        top: 700px;
-    }
-
     .lt-header-animator-left {
         top: 350px;
     }
 
     .lt-header-animator-right {
         top: 350px;
-    }
-
-    #lt-readme .content {
-        height: 380px;
-    }
-    #lt-readme .content p{
-        padding-left: 15px;
-        padding-right: 15px;
-        padding-top: 8px;
     }
 
     #lt-bandwidth {
@@ -737,33 +672,6 @@ ul {
 
     #lt-launch-github {
         margin-top: 60px;
-    }
-
-    #lt-keyboard {
-        margin-left: 60px;
-        top: 455px;
-        width: 600px;
-    }
-
-    #lt-keyboard div{
-        width: 45px;
-        height: 30px;
-        font-size: 16px;
-    }
-
-    #lt-keyboard #k-9{
-        margin-left:20px;
-    }
-
-
-    #lt-keyboard #k-32 {
-        width: 400px;
-        height: 12px;
-        margin-top: 15px;
-    }
-
-    #lt-keyboard #k-500{
-        margin-left:40px;
     }
 
     #lt-far-right-column {
