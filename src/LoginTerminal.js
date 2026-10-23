@@ -7,7 +7,8 @@
  * sddm-theme/, which ports this logic to QML. Here only the demo
  * credentials below are accepted. */
 
-var $ = require("jquery");
+var $ = require("jquery"),
+    GeoLock = require("./GeoLock.js");
 
 var DEMO_USER = "flynn",
     DEMO_PASSWORD = "tron",
@@ -25,12 +26,25 @@ var KEYBOARD_ROWS = [
     ["SPACE"]
 ];
 
-// (user, password, done(ok))
+// (user, secret, done(ok)): the demo password, or the saved geo-lock
+// sequence (GeoLock.js), both for DEMO_USER only
 var authenticate = function(user, pass, done){
     setTimeout(function(){
-        done(user === DEMO_USER && pass === DEMO_PASSWORD);
+        if (user !== DEMO_USER) {
+            done(false);
+        } else if (GeoLock.isSecret(pass)) {
+            GeoLock.check(pass, done);
+        } else {
+            done(pass === DEMO_PASSWORD);
+        }
     }, VERIFY_MS);
 };
+
+var attemptListeners = [];   // fn(ok) after each attempt (the geo-lock panel resets)
+
+function attemptFinished(ok){
+    attemptListeners.forEach(function(fn){ fn(ok); });
+}
 
 var state = "idle",     // "login" | "password" | "busy" | "locked" | "done"
     username = "",
@@ -120,6 +134,7 @@ function granted(){
         write("Last login: " + previous + " on " + HOSTNAME);
     }
     write('<span class="highlight">ACCESS GRANTED.</span> Welcome, <strong>' + escapeHtml(username) + "</strong>");
+    attemptFinished(true);
     write("&gt;&gt;encom-sh: launching boardroom ...");
     setTimeout(onLogin, 1500);
 }
@@ -127,6 +142,7 @@ function granted(){
 function denied(){
     attempts++;
     write('<span class="alert">ACCESS DENIED.</span> Login incorrect');
+    attemptFinished(false);
     if(attempts >= MAX_ATTEMPTS){
         lock();
     } else {
@@ -320,6 +336,29 @@ LoginTerminal.start = function(){
 LoginTerminal.stop = function(){
     state = "idle";
     $(document).off("keydown.loginterminal");
+};
+
+/* Geo-lock (GeoLockPanel.js): a finished sequence is sent like a typed
+ * password, at the Password: prompt after the login. Returns false (with a
+ * hint in the terminal) when the terminal isn't asking for a password. */
+LoginTerminal.submitGeo = function(secret){
+    if(state !== "password"){
+        if(state === "login"){
+            write("&gt;&gt;encom-sh: type your login first, then use the geo-lock as the password");
+        }
+        return false;
+    }
+    stopCursor();
+    write("&gt;&gt;encom-sh: geo-lock sequence submitted");
+    password = secret;
+    verify();
+    return true;
+};
+
+LoginTerminal.write = write;
+
+LoginTerminal.onAttempt = function(fn){
+    attemptListeners.push(fn);
 };
 
 module.exports = LoginTerminal;

@@ -1,6 +1,7 @@
 var $ = require("jquery"),
     Boardroom = require("./Boardroom.js"),
     LightTable = require("./LightTable.js"),
+    GeoLockPanel = require("./GeoLockPanel.js"),
     Feeds = require("./Feeds.js"),
     PleaseRotate = require("pleaserotate.js"),
     init = false;
@@ -166,4 +167,3 @@ PleaseRotate.start({onHide: function(){
     window.addEventListener( 'resize', onWindowResize, false );
 
 }});
-

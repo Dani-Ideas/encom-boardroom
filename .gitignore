@@ -5,3 +5,5 @@ sddm-theme/EncomSystem/
 sddm-theme/native/build/
 sddm-theme/theme.conf.user
 plymouth-theme/build/
+lockscreen-theme/contents/lockscreen/encomglobe/
+lockscreen-theme/contents/lockscreen/EncomSystem/

@@ -1,7 +1,8 @@
 var $ = require("jquery"),
     THREE = require("three"),
     Utils = require("./Utils.js"),
-    LoginTerminal = require("./LoginTerminal.js");
+    LoginTerminal = require("./LoginTerminal.js"),
+    GeoLockPanel = require("./GeoLockPanel.js");
 
 // Stream the boardroom opens after a successful (demo) login.
 var LOGIN_STREAM = "test";
@@ -40,6 +41,7 @@ LightTable.init = function(_hideFn){
             hideFn(LOGIN_STREAM);
         }, 500);
     });
+    GeoLockPanel.init();
 
     initialized = true;
 };

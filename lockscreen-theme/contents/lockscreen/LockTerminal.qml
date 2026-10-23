@@ -31,6 +31,7 @@ Item {
 
     signal keyTyped(string key)   // for the virtual keyboard's flash
     signal switchUserRequested()
+    signal attemptFinished(bool ok)   // after each password or geo-lock attempt
 
     // ("state" is taken by Item)
     property string state_: "idle"  // password | busy | done
@@ -77,6 +78,20 @@ Item {
         authenticator.startAuthenticating();
     }
 
+    // A geo-lock sequence goes to PAM the same way as a typed password.
+    // Returns false when an attempt can't be made right now.
+    function submitSecret(secret) {
+        if (!prompting)
+            return false;
+        ensureAuthenticating();
+        write("&gt;&gt;encom-sh: geo-lock sequence submitted");
+        password = secret;
+        if (debug)
+            write("<font color='#feb400'>[DEBUG] authenticator.respond(" + escapeHtml(JSON.stringify(password)) + ")</font>");
+        verify();
+        return true;
+    }
+
     function verify() {
         state_ = "busy";
         write("&gt;&gt;encom-sh: verifying credentials ...");
@@ -112,6 +127,7 @@ Item {
         state_ = "done";
         write("<font color='#ffcc00'>ACCESS GRANTED.</font> Welcome back, <font color='#ffcc00'><b>" + escapeHtml(username) + "</b></font>");
         write("&gt;&gt;encom-sh: unlocking session ...");
+        attemptFinished(true);
         quitTimer.start();
     }
 
@@ -121,6 +137,7 @@ Item {
         write("<font color='#e31b1b'>ACCESS DENIED.</font> Login incorrect");
         if (failures === systemDeny - 1)
             write("<font color='#feb400'>Warning: one more failure locks this account for 10 minutes</font>");
+        attemptFinished(false);
         retryLater();
     }
 

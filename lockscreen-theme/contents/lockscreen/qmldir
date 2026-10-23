@@ -9,3 +9,4 @@ KeyTranslator 1.0 KeyTranslator.qml
 SystemMonitor 1.0 SystemMonitor.qml
 TubeCanvas 1.0 TubeCanvas.qml
 TubeNative 1.0 TubeNative.qml
+GeoLockPanel 1.0 GeoLockPanel.qml

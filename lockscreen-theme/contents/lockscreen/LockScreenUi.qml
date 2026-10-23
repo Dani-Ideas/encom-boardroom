@@ -26,6 +26,8 @@ Rectangle {
     }
 
     property bool sleeping: false
+    property bool geoMode: false   // the GEO-LOCK panel is showing
+    property bool geoUsed: false   // it was opened once (then it stays loaded)
 
     // Shows the password and each key event in the terminal. Only for trying
     // changes with ./install-lockscreen.sh test; never leave it on.
@@ -200,17 +202,22 @@ Rectangle {
                     }
 
                     Column {
+                        id: sideColumn
                         x: parent.width * 0.54 - 12
                         y: 27
                         width: parent.width * 0.46
                         spacing: 14
 
                         Row {
+                            id: buttonRow
                             spacing: 10
                             TronButton {
                                 text: "KEYBOARD"
                                 active: keyboard.visible
-                                onClicked: keyboard.visible = !keyboard.visible
+                                onClicked: {
+                                    keyboard.visible = !keyboard.visible;
+                                    root.geoMode = false;
+                                }
                             }
                             TronButton {
                                 text: "SLEEP"
@@ -219,6 +226,52 @@ Rectangle {
                             TronButton {
                                 text: "SWITCH USER"
                                 onClicked: terminal.switchUser()
+                            }
+                            TronButton {
+                                text: "GEO-LOCK"
+                                active: root.geoMode
+                                onClicked: {
+                                    root.geoMode = !root.geoMode;
+                                    root.geoUsed = true;
+                                    keyboard.visible = false;
+                                }
+                            }
+                        }
+
+                        // The second way to unlock: the place sequence on the globe
+                        // (GeoLockPanel.qml). Loaded the first time it's opened, and
+                        // in a Loader so a problem with the globe plugin can't take
+                        // the password prompt down with it.
+                        Loader {
+                            id: geoLock
+                            width: parent.width
+                            height: sideColumn.parent.height - sideColumn.y - buttonRow.height - sideColumn.spacing - 10
+                            visible: root.geoMode
+                            active: root.geoUsed
+                            source: "GeoLockPanel.qml"
+                            onStatusChanged: {
+                                if (status === Loader.Error)
+                                    terminal.write("<font color='#e31b1b'>&gt;&gt;encom-sh: geo-lock unavailable, use the password</font>");
+                            }
+                            Binding {
+                                target: geoLock.item
+                                property: "acceptInput"
+                                value: terminal.prompting
+                                when: geoLock.item !== null
+                            }
+                            Connections {
+                                target: geoLock.item
+                                function onCompleted(secret) {
+                                    if (!terminal.submitSecret(secret))
+                                        geoLock.item.reset();
+                                }
+                            }
+                            Connections {
+                                target: terminal
+                                function onAttemptFinished(ok) {
+                                    if (geoLock.item && !ok)
+                                        geoLock.item.reset();
+                                }
                             }
                         }
 

@@ -344,6 +344,102 @@ ul {
     color: #000;
 }
 
+/* GEO-LOCK: the globe takes the keyboard's place under the buttons */
+#lt-geolock {
+    display: none;
+    margin-top: 10px;
+}
+
+#lt-geolock.lt-geolock-open {
+    display: block;
+}
+
+.lt-geolock-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+#lt-geolock-slots {
+    display: flex;
+    gap: 4px;
+}
+
+.lt-geolock-slot {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #1b2f2d;
+    border-radius: 2px;
+    color: #1b2f2d;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lt-geolock-slot.filled {
+    border-color: #ffcc00;
+    color: #ffcc00;
+}
+
+.lt-geolock-slot.next {
+    border-color: #00eeee;
+    color: #00eeee;
+}
+
+.lt-geolock-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.lt-geolock-actions .lt-button, .lt-geolock-choice {
+    padding: 1px 6px;
+    font-size: 9px;
+}
+
+.lt-geolock-options {
+    color: #6fc0ba;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+.lt-geolock-choices {
+    display: flex;
+    gap: 3px;
+    margin-right: 6px;
+}
+
+#lt-geolock-bits {
+    margin-left: auto;
+}
+
+#lt-geolock-globe {
+    position: relative;
+    height: 150px;
+    border: 1px solid #1b2f2d;
+    overflow: hidden;
+}
+
+#lt-geolock-globe canvas {
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+#lt-geolock-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 4px;
+    text-align: center;
+    color: #6fc0ba;
+    font-size: 9px;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
 /* Sleep mode covers everything until a key or click */
 #lt-sleep {
     display: none;
@@ -735,6 +831,21 @@ ul {
 
     #lt-login-side {
         margin-top: 27px;
+    }
+
+    #lt-geolock-globe {
+        height: 250px;
+    }
+
+    .lt-geolock-slot {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+
+    .lt-geolock-actions .lt-button, .lt-geolock-choice,
+    .lt-geolock-options, #lt-geolock-hint {
+        font-size: 9pt;
     }
 
     .lt-button {
